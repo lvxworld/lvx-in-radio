@@ -1,0 +1,21 @@
+{
+  "id": "210f17b6-3208-4c47-b2bd-80d5d6cc3bb7",
+  "station": "lux-edm",
+  "title": "Lux in Tenebris",
+  "durationSec": 179.998667,
+  "truncated": false,
+  "createdAt": "2026-11-01T10:23:37.161Z",
+  "generation": {
+    "mix": {
+      "EDM": 100
+    },
+    "energy": 80,
+    "bpm": 124,
+    "dark": 60,
+    "melody": true,
+    "vocals": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  }
+}

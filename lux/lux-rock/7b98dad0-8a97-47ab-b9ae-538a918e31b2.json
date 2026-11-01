@@ -1,0 +1,21 @@
+{
+  "id": "7b98dad0-8a97-47ab-b9ae-538a918e31b2",
+  "station": "lux-rock",
+  "title": "Carry On Heavy",
+  "durationSec": 136.358667,
+  "truncated": false,
+  "createdAt": "2026-11-01T10:23:45.132Z",
+  "generation": {
+    "mix": {
+      "Rock": 100
+    },
+    "energy": 72,
+    "bpm": 124,
+    "dark": 40,
+    "melody": true,
+    "vocals": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  }
+}

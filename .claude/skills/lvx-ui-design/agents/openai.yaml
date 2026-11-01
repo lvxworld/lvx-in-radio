@@ -1,0 +1,6 @@
+interface:
+  display_name: "LVX UI Design"
+  short_description: "Preserve the LVX analog-radio visual identity"
+  default_prompt: "Use $lvx-ui-design to improve this interface while preserving LVX in Radio's current style."
+policy:
+  allow_implicit_invocation: true

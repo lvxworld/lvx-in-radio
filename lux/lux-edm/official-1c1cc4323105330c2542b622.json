@@ -1,0 +1,30 @@
+{
+  "id": "official-1c1cc4323105330c2542b622",
+  "station": "lux-edm",
+  "title": "Lux In Tenebris \u2014 Complete Demo",
+  "durationSec": 237.518667,
+  "truncated": false,
+  "createdAt": "2026-10-10T19:43:37",
+  "generation": {
+    "mix": {
+      "EDM": 65,
+      "Techno": 35
+    },
+    "energy": 80,
+    "bpm": 124,
+    "dark": 60,
+    "melody": true,
+    "instrumental": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  },
+  "sizeBytes": 9503040,
+  "sha256": "1c1cc4323105330c2542b622b2407f44920cc78b235b363ace658eef9ff4661c",
+  "file": "lux-edm/official-1c1cc4323105330c2542b622.mp3",
+  "source": {
+    "file": "20261010-194337-lux-in-tenebris-complete-demo.mp3",
+    "style": "English, melodic techno, dark progressive house, cinematic, 124 BPM, four-on-the-floor kick, pulsing rolling bassline, hypnotic synth arpeggios, huge analog lead, epic supersaw chords, atmospheric pads, ethereal female vocal, airy reverb, emotional build-up, massive festival drop, wide stereo, polished club master",
+    "seed": 454234436
+  }
+}

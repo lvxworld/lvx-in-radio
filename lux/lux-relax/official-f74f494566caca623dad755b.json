@@ -1,0 +1,31 @@
+{
+  "id": "official-f74f494566caca623dad755b",
+  "station": "lux-relax",
+  "title": "We Rise And Carry On",
+  "durationSec": 66.798667,
+  "truncated": false,
+  "createdAt": "2026-10-16T21:48:00",
+  "generation": {
+    "mix": {
+      "Ambient": 70,
+      "Classical": 20,
+      "Pop": 10
+    },
+    "energy": 24,
+    "bpm": 74,
+    "dark": 20,
+    "melody": true,
+    "instrumental": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  },
+  "sizeBytes": 2674560,
+  "sha256": "f74f494566caca623dad755b0d91bebc666bb99ad7fcf03fa1517fb192678be1",
+  "file": "lux-relax/official-f74f494566caca623dad755b.mp3",
+  "source": {
+    "file": "20261016-214715-we-rise-and-carry-on.mp3",
+    "style": "Hopeful cinematic ambient, warm piano, gentle acoustic guitar, soft strings, open vocal harmonies and a gradual uplifting build.",
+    "seed": 1769257819
+  }
+}

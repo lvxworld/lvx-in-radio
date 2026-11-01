@@ -1,0 +1,21 @@
+{
+  "id": "8cb4958a-9fd0-4d25-ba83-5e51e33c6ebe",
+  "station": "lux-pop",
+  "title": "Across the Light",
+  "durationSec": 69.958667,
+  "truncated": false,
+  "createdAt": "2026-11-01T10:23:49.375Z",
+  "generation": {
+    "mix": {
+      "Pop": 100
+    },
+    "energy": 68,
+    "bpm": 112,
+    "dark": 20,
+    "melody": true,
+    "vocals": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  }
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "LVX Implementation"
+  short_description: "Extend LVX radio behavior without breaking its rules"
+  default_prompt: "Use $lvx-implementation to implement this change with the existing radio architecture and tests."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,21 @@
+{
+  "id": "affce4e3-ff5b-485d-afeb-5387ac3a9720",
+  "station": "lux-edm",
+  "title": "We Rise",
+  "durationSec": 208.318667,
+  "truncated": false,
+  "createdAt": "2026-11-01T10:23:39.260Z",
+  "generation": {
+    "mix": {
+      "EDM": 100
+    },
+    "energy": 80,
+    "bpm": 124,
+    "dark": 60,
+    "melody": true,
+    "vocals": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  }
+}

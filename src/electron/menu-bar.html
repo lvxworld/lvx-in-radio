@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'">
+  <title>LVX mini player</title>
+  <link rel="stylesheet" href="menu-bar.css">
+  <script src="menu-bar-player.js" defer></script>
+</head>
+<body>
+  <main class="mini-radio">
+    <header>
+      <span class="brand"><img src="../ui/assets/logo-symbol.png" alt=""><span>LVX<small>IN RADIO</small></span></span>
+      <span class="status" role="status"><i></i><span id="status">READY</span></span>
+    </header>
+    <section class="station" aria-label="Current station">
+      <div class="frequency"><span id="frequency">—</span><small>FM</small></div>
+      <h1 id="station">LVX in Radio</h1>
+      <p id="track">Your radio, a little closer.</p>
+    </section>
+    <div class="transport">
+      <button id="play" type="button" aria-label="Play" title="Play" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path id="play-glyph" d="M9 5v14l11-7z"></path></svg>
+      </button>
+      <div><strong id="play-label">Play</strong><span id="play-hint">Choose a station in the app</span></div>
+      <svg class="signal" viewBox="0 0 50 30" fill="none" aria-hidden="true"><path d="M1 15h8l5-9 10 19 7-19 6 9h12"></path></svg>
+    </div>
+    <button id="open" type="button">Open radio<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3 9h18"></path></svg></button>
+  </main>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "name": "lvx-in-radio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test tests/*.test.js",
+    "lux:songs": "node scripts/lux-songs.js",
+    "fetch-engine": "node scripts/fetch-engine.js",
+    "app": "electron .",
+    "dist": "npm run fetch-engine && electron-builder --mac --arm64 --publish never && node scripts/clean-dist.js",
+    "fresh": "sh scripts/fresh-launch.sh",
+    "test:menu-bar": "electron tests/electron/menu-bar-smoke.js"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
+  },
+  "main": "src/electron/main.js",
+  "description": "A local generative radio for Apple Silicon Macs",
+  "author": "LVX",
+  "productName": "LVX in Radio",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lvxworld/lvx-in-radio.git"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "714420c1-d980-4f4f-8b95-11cab383fbb5",
+  "station": "lux-rock",
+  "title": "Stay with the Rhythm",
+  "durationSec": 149.958667,
+  "truncated": false,
+  "createdAt": "2026-11-01T10:23:46.692Z",
+  "generation": {
+    "mix": {
+      "Rock": 100
+    },
+    "energy": 72,
+    "bpm": 124,
+    "dark": 40,
+    "melody": true,
+    "vocals": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  }
+}

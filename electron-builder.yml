@@ -1,0 +1,25 @@
+appId: com.lvx.radio
+productName: LVX in Radio
+directories:
+  output: dist
+  buildResources: build
+files:
+  - package.json
+  - src/**
+extraResources:
+  - from: vendor/audio.cpp
+    to: engine
+  - from: lux
+    to: lux
+mac:
+  target:
+    - target: dmg
+      arch: arm64
+  # Ad-hoc only: there is no Apple Developer ID. See the README about opening the app.
+  identity: "-"
+  hardenedRuntime: false
+  notarize: false
+  category: public.app-category.music
+  icon: build/icon.icns
+dmg:
+  title: LVX in Radio

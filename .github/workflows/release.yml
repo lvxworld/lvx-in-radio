@@ -1,0 +1,50 @@
+name: Release
+
+# Pushing a tag like v0.1.0 tests the app, builds the arm64 DMG and publishes it.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing or new release tag, for example v0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      # The DMG is ad-hoc signed: there is no Apple Developer ID.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist
+      - name: Check the build
+        run: |
+          app="dist/mac-arm64/LVX in Radio.app"
+          codesign -dv "$app" 2>&1 | grep -q 'Signature=adhoc'
+          test -x "$app/Contents/Resources/engine/audiocpp_server"
+          test -f "$app/Contents/Resources/lux/manifest.json"
+          ls -la dist/*.dmg
+      - name: Publish the release
+        run: |
+          dmg=$(ls dist/*.dmg)
+          shasum -a 256 "$dmg" | sed 's|dist/||' > dist/SHA256SUMS.txt
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$dmg" dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$TAG" "$dmg" dist/SHA256SUMS.txt \
+              --title "LVX in Radio $TAG" --target "$GITHUB_SHA" --prerelease \
+              --notes-file .github/release-notes.md
+          fi

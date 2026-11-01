@@ -1,0 +1,21 @@
+{
+  "id": "37860cdf-ea7d-4e00-90fd-1615ecf5417e",
+  "station": "lux-pop",
+  "title": "A New Day",
+  "durationSec": 73.478667,
+  "truncated": false,
+  "createdAt": "2026-11-01T10:23:48.415Z",
+  "generation": {
+    "mix": {
+      "Pop": 100
+    },
+    "energy": 68,
+    "bpm": 112,
+    "dark": 20,
+    "melody": true,
+    "vocals": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  }
+}

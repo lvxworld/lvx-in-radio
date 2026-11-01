@@ -1,0 +1,29 @@
+{
+  "id": "official-a9624e829e1a7bf1efa05fc5",
+  "station": "lux-pop",
+  "title": "We Rise And Carry On",
+  "durationSec": 55.838667,
+  "truncated": false,
+  "createdAt": "2026-10-11T22:04:46",
+  "generation": {
+    "mix": {
+      "Pop": 100
+    },
+    "energy": 42,
+    "bpm": 100,
+    "dark": 20,
+    "melody": true,
+    "instrumental": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  },
+  "sizeBytes": 2235840,
+  "sha256": "a9624e829e1a7bf1efa05fc5adea3cd1ae0c08b3567c81e688876e0279eca6ca",
+  "file": "lux-pop/official-a9624e829e1a7bf1efa05fc5.mp3",
+  "source": {
+    "file": "implicit-length-smoke-20261011.mp3",
+    "style": "English, indie pop, 100 BPM, warm piano, rounded bass, soft drums, clear solo vocal, resolved ending",
+    "seed": 3217
+  }
+}

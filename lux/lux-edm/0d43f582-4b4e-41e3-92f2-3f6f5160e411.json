@@ -1,0 +1,21 @@
+{
+  "id": "0d43f582-4b4e-41e3-92f2-3f6f5160e411",
+  "station": "lux-edm",
+  "title": "Luminous Build",
+  "durationSec": 331.638667,
+  "truncated": false,
+  "createdAt": "2026-11-01T10:23:41.617Z",
+  "generation": {
+    "mix": {
+      "EDM": 100
+    },
+    "energy": 80,
+    "bpm": 124,
+    "dark": 60,
+    "melody": true,
+    "vocals": false,
+    "mode": "Direct",
+    "mood": "",
+    "flavors": []
+  }
+}

@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "songs": [
+    {
+      "id": "0d43f582-4b4e-41e3-92f2-3f6f5160e411",
+      "station": "lux-edm",
+      "title": "Luminous Build",
+      "durationSec": 331.638667,
+      "truncated": false,
+      "createdAt": "2026-11-01T10:23:41.617Z",
+      "generation": {
+        "mix": {
+          "EDM": 100
+        },
+        "energy": 80,
+        "bpm": 124,
+        "dark": 60,
+        "melody": true,
+        "vocals": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 10614528,
+      "sha256": "1773f3f83efb1c8efbf04475ea56a7cb427a981148071bd9bad2f9cdc3d31503",
+      "file": "lux-edm/0d43f582-4b4e-41e3-92f2-3f6f5160e411.mp3"
+    },
+    {
+      "id": "210f17b6-3208-4c47-b2bd-80d5d6cc3bb7",
+      "station": "lux-edm",
+      "title": "Lux in Tenebris",
+      "durationSec": 179.998667,
+      "truncated": false,
+      "createdAt": "2026-11-01T10:23:37.161Z",
+      "generation": {
+        "mix": {
+          "EDM": 100
+        },
+        "energy": 80,
+        "bpm": 124,
+        "dark": 60,
+        "melody": true,
+        "vocals": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 5761536,
+      "sha256": "093f1c4bbd789a86e81b3ccc61907405d7478cd563a0ac71cd00ed6619bfc15b",
+      "file": "lux-edm/210f17b6-3208-4c47-b2bd-80d5d6cc3bb7.mp3"
+    },
+    {
+      "id": "affce4e3-ff5b-485d-afeb-5387ac3a9720",
+      "station": "lux-edm",
+      "title": "We Rise",
+      "durationSec": 208.318667,
+      "truncated": false,
+      "createdAt": "2026-11-01T10:23:39.260Z",
+      "generation": {
+        "mix": {
+          "EDM": 100
+        },
+        "energy": 80,
+        "bpm": 124,
+        "dark": 60,
+        "melody": true,
+        "vocals": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 6667776,
+      "sha256": "47d0b64b9ef9ce9a0298551b3f9a4197ea8494a408bb63eb2f7af60d14e1502c",
+      "file": "lux-edm/affce4e3-ff5b-485d-afeb-5387ac3a9720.mp3"
+    },
+    {
+      "id": "714420c1-d980-4f4f-8b95-11cab383fbb5",
+      "station": "lux-rock",
+      "title": "Stay with the Rhythm",
+      "durationSec": 149.958667,
+      "truncated": false,
+      "createdAt": "2026-11-01T10:23:46.692Z",
+      "generation": {
+        "mix": {
+          "Rock": 100
+        },
+        "energy": 72,
+        "bpm": 124,
+        "dark": 40,
+        "melody": true,
+        "vocals": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 4800768,
+      "sha256": "98c31feada04634147b816c31fb3a964177f0b8db99783960b455ada27f03335",
+      "file": "lux-rock/714420c1-d980-4f4f-8b95-11cab383fbb5.mp3"
+    },
+    {
+      "id": "7b98dad0-8a97-47ab-b9ae-538a918e31b2",
+      "station": "lux-rock",
+      "title": "Carry On Heavy",
+      "durationSec": 136.358667,
+      "truncated": false,
+      "createdAt": "2026-11-01T10:23:45.132Z",
+      "generation": {
+        "mix": {
+          "Rock": 100
+        },
+        "energy": 72,
+        "bpm": 124,
+        "dark": 40,
+        "melody": true,
+        "vocals": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 4365312,
+      "sha256": "ddbb9b9d73c402ee7c4c2fc5a195d5557cc3644a525fd9591dabeb7d06e3d7f3",
+      "file": "lux-rock/7b98dad0-8a97-47ab-b9ae-538a918e31b2.mp3"
+    },
+    {
+      "id": "37860cdf-ea7d-4e00-90fd-1615ecf5417e",
+      "station": "lux-pop",
+      "title": "A New Day",
+      "durationSec": 73.478667,
+      "truncated": false,
+      "createdAt": "2026-11-01T10:23:48.415Z",
+      "generation": {
+        "mix": {
+          "Pop": 100
+        },
+        "energy": 68,
+        "bpm": 112,
+        "dark": 20,
+        "melody": true,
+        "vocals": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 2353152,
+      "sha256": "beb29a395d3fa186986f370da9aebed905128f203edb1feb01c1b1ad8a28e34a",
+      "file": "lux-pop/37860cdf-ea7d-4e00-90fd-1615ecf5417e.mp3"
+    },
+    {
+      "id": "8cb4958a-9fd0-4d25-ba83-5e51e33c6ebe",
+      "station": "lux-pop",
+      "title": "Across the Light",
+      "durationSec": 69.958667,
+      "truncated": false,
+      "createdAt": "2026-11-01T10:23:49.375Z",
+      "generation": {
+        "mix": {
+          "Pop": 100
+        },
+        "energy": 68,
+        "bpm": 112,
+        "dark": 20,
+        "melody": true,
+        "vocals": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 2240256,
+      "sha256": "9efabd63552792f1b5661bc05d830d2d06f0f91f29a954815d53f57c73c89dd3",
+      "file": "lux-pop/8cb4958a-9fd0-4d25-ba83-5e51e33c6ebe.mp3"
+    },
+    {
+      "id": "official-1c1cc4323105330c2542b622",
+      "station": "lux-edm",
+      "title": "Lux In Tenebris \u2014 Complete Demo",
+      "durationSec": 237.518667,
+      "truncated": false,
+      "createdAt": "2026-10-10T19:43:37",
+      "generation": {
+        "mix": {
+          "EDM": 65,
+          "Techno": 35
+        },
+        "energy": 80,
+        "bpm": 124,
+        "dark": 60,
+        "melody": true,
+        "instrumental": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 9503040,
+      "sha256": "1c1cc4323105330c2542b622b2407f44920cc78b235b363ace658eef9ff4661c",
+      "file": "lux-edm/official-1c1cc4323105330c2542b622.mp3",
+      "source": {
+        "file": "20261010-194337-lux-in-tenebris-complete-demo.mp3",
+        "style": "English, melodic techno, dark progressive house, cinematic, 124 BPM, four-on-the-floor kick, pulsing rolling bassline, hypnotic synth arpeggios, huge analog lead, epic supersaw chords, atmospheric pads, ethereal female vocal, airy reverb, emotional build-up, massive festival drop, wide stereo, polished club master",
+        "seed": 454234436
+      }
+    },
+    {
+      "id": "official-a9624e829e1a7bf1efa05fc5",
+      "station": "lux-pop",
+      "title": "We Rise And Carry On",
+      "durationSec": 55.838667,
+      "truncated": false,
+      "createdAt": "2026-10-11T22:04:46",
+      "generation": {
+        "mix": {
+          "Pop": 100
+        },
+        "energy": 42,
+        "bpm": 100,
+        "dark": 20,
+        "melody": true,
+        "instrumental": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 2235840,
+      "sha256": "a9624e829e1a7bf1efa05fc5adea3cd1ae0c08b3567c81e688876e0279eca6ca",
+      "file": "lux-pop/official-a9624e829e1a7bf1efa05fc5.mp3",
+      "source": {
+        "file": "implicit-length-smoke-20261011.mp3",
+        "style": "English, indie pop, 100 BPM, warm piano, rounded bass, soft drums, clear solo vocal, resolved ending",
+        "seed": 3217
+      }
+    },
+    {
+      "id": "official-f74f494566caca623dad755b",
+      "station": "lux-relax",
+      "title": "We Rise And Carry On",
+      "durationSec": 66.798667,
+      "truncated": false,
+      "createdAt": "2026-10-16T21:48:00",
+      "generation": {
+        "mix": {
+          "Ambient": 70,
+          "Classical": 20,
+          "Pop": 10
+        },
+        "energy": 24,
+        "bpm": 74,
+        "dark": 20,
+        "melody": true,
+        "instrumental": false,
+        "mode": "Direct",
+        "mood": "",
+        "flavors": []
+      },
+      "sizeBytes": 2674560,
+      "sha256": "f74f494566caca623dad755b0d91bebc666bb99ad7fcf03fa1517fb192678be1",
+      "file": "lux-relax/official-f74f494566caca623dad755b.mp3",
+      "source": {
+        "file": "20261016-214715-we-rise-and-carry-on.mp3",
+        "style": "Hopeful cinematic ambient, warm piano, gentle acoustic guitar, soft strings, open vocal harmonies and a gradual uplifting build.",
+        "seed": 1769257819
+      }
+    }
+  ]
+}
