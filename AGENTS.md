@@ -8,7 +8,6 @@
 - `src/server/`: local HTTP API and static hosting.
 - `src/ui/`: interface and its vendored assets.
 - `tests/`: automated tests.
-- `POC/`: original design prototypes, kept unmodified.
 
 ## Build, Test, and Development Commands
 

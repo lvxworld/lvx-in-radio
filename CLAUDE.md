@@ -14,7 +14,7 @@ metadata matches; they can also be invoked explicitly.
 
 LVX in Radio is a local generative radio for Apple Silicon, packaged as an Electron DMG (released on GitHub, with first-run model setup). The current app is a first proof of concept: Direct mode, vocals by default with an Instrumental only choice per station, one station at a time. It recreates generation for this product and does not depend on Lux In Music code; from source, `npm start` still reuses the `audiocpp_server` binary and weights from a sibling `../lux-in-music` checkout; the built app contains audio.cpp v0.9.3 and depends on nothing outside itself.
 
-`POC/` holds the original design prototypes. Keep them unmodified; `POC/README.md` describes the intended interface, in Italian.
+`POC/`, when present, holds the original design prototypes and is ignored by git. Keep them unmodified; `POC/README.md` describes the intended interface, in Italian.
 
 ## Commands
 
