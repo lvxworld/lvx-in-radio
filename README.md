@@ -1,4 +1,4 @@
-<p align="center"><img src="build/logo-source.png" alt="LVX in Radio" width="420"></p>
+<p align="center"><img src="build/logo-source.png" alt="LVX in Radio" width="220"></p>
 
 <h3 align="center">A radio station that composes itself, on your Mac.</h3>
 
