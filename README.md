@@ -27,6 +27,12 @@ There's nothing else to install.
 
 **You need** a Mac with Apple Silicon and about 5 GB of free space. A new song takes a few minutes to compose, and more memory helps: 16 GB or more is what we'd suggest.
 
+## How to use it
+
+From first launch to sharing your station, every feature in about four minutes.
+
+https://github.com/user-attachments/assets/f69f950a-c764-4ae1-b2e4-f07b8664a08e
+
 ## The music is yours to use
 
 LVX in Radio is powered by [YuE2](https://github.com/multimodal-art-projection/YuE) and [audio.cpp](https://github.com/0xShug0/audio.cpp).
