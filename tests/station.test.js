@@ -1614,3 +1614,11 @@ test('adding a bundled frequency relocates an existing user station without losi
   assert.notEqual(upgraded.get(id).k,own.k);
   const reloaded=new StationStore(path,{reservedFrequencies:[own.k]});await reloaded.load();assert.equal(reloaded.get(id).k,upgraded.get(id).k);
 });
+
+test('every asset the interface loads is present', async () => {
+  const uiDir = new URL('../src/ui/', import.meta.url);
+  const page = await readFile(new URL('index.html', uiDir), 'utf8');
+  const assets = new Set([...page.matchAll(/assets\/[\w./-]+\.\w+/g)].map(([path]) => path));
+  assert.ok(assets.size > 5);
+  for (const path of assets) await readFile(new URL(path, uiDir));
+});
