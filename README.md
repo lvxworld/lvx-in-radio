@@ -1,123 +1,42 @@
-# LVX in Radio
+<p align="center"><img src="build/logo-source.png" alt="LVX in Radio" width="420"></p>
 
-A local generative radio for Apple Silicon Macs. Choose a sound, press Tune In, and YuE2 composes the
-station on your machine while you listen.
+<h3 align="center">A radio station that composes itself, on your Mac.</h3>
 
-This is a first proof of concept: Direct mode, vocals by default with an Instrumental only choice per station, one station at a time. Four LVX stations (EDM, Rock, Pop, Relax) play from the first launch, so the radio is already on while you compose your own.
+<p align="center"><a href="docs/media/lvx-in-radio-demo.mp4"><img src="docs/media/lvx-in-radio-demo.gif" alt="LVX in Radio turning between stations, its light following the music" width="760"></a></p>
 
-## Install
+<p align="center"><a href="docs/media/lvx-in-radio-demo.mp4">Watch the demo with sound</a> · <a href="https://github.com/lvxworld/lvx-in-radio/releases/latest"><b>Download for Mac</b></a></p>
 
-Download the DMG from [Releases](https://github.com/lvxworld/lvx-in-radio/releases) and drag **LVX in Radio** into Applications.
-The app runs on Apple Silicon Macs and includes audio.cpp v0.9.3 and the LVX stations' songs.
-Node.js and a source checkout are not needed to run it.
+Pick a mood, turn the dials, press Tune In. LVX in Radio writes a station just for you, one new song after another, while you listen. No playlists to build, nothing to skip through, and the music is made right there on your Mac.
 
-Switching to Create expands the native window to fit its controls; returning to
-On air restores the previous bounds. On smaller displays Create scales to the
-available space so no page scrolling is needed.
+## Why you'll love it
 
-At first launch the LVX stations play immediately. If the music model is missing, the
-setup screen opens automatically. Accept the model terms, then download the model
-(about 4.5 GB) or choose a folder where it already exists. Downloads can be paused
-and resumed, including after closing the app. Every file is checked by SHA-256
-before generation is enabled. Existing folders are used in place, without a copy.
-When setup is ready, choose **Create your station**. The gear in the title bar
-opens setup again.
+- **Music on from the first second.** The LVX stations are already on air when you open the app, so you have something to listen to while you create your own.
+- **Stations that are yours.** Choose a scenario, mix up to five of thirteen genres, set the energy and give your station a name. Add your own words if you like, or go instrumental.
+- **A radio, not a playlist.** Turn the FM dial and watch the light change with each station. New songs arrive by themselves, just before you need them.
+- **It gets to know you.** Keep the songs you love and remove the ones you don't. Your stations remember.
+- **Share a sound as a picture.** Every station has a Lux code: a living QR code made of dust. Send it, and a friend can tune in to the same sound.
+- **Private by design.** Songs are composed on your Mac. No account, no subscription, no cloud generation.
 
-The app stores songs, stations and logs in
-`~/Library/Application Support/LVX Radio/`. This directory keeps its original name
-so data from the first preview is preserved. Downloaded weights go in its `models/`
-subfolder; a selected external folder is remembered in `model-settings.json`.
-Minimizing, closing the window or using its title-bar menu-bar symbol keeps the
-radio playing in the macOS menu bar. Click the menu-bar symbol for a mini player
-with Play/Stop, the current song and Open radio. Open radio restores the previous window size and position. Right-click
-for playback, Open and Quit. Explicit Quit stops the engine;
-a song still composing is lost.
+## Get started
 
-### Opening the app the first time
+1. **[Download the app](https://github.com/lvxworld/lvx-in-radio/releases/latest)** and drag **LVX in Radio** into Applications.
+2. **Open it.** macOS asks for approval the first time, because this free app isn't notarized by Apple: go to **System Settings → Privacy & Security → Open Anyway**.
+3. **Listen, then create.** The app guides you through the one thing it needs, the music model (about 4.5 GB). It downloads, pauses and resumes by itself, and you can keep listening meanwhile.
 
-The app is ad-hoc signed, without an Apple Developer ID or notarization, so macOS blocks a
-downloaded copy. After trying to open it, go to **System Settings → Privacy & Security →
-Open Anyway**, then confirm. Only override the warning for a copy you trust. See
-[Apple's instructions](https://support.apple.com/en-us/102445).
+There's nothing else to install.
 
-Removing the app leaves your songs and settings in Application Support. Remove
-that data folder separately only if you want to erase them too.
+**You need** a Mac with Apple Silicon and about 5 GB of free space. A new song takes a few minutes to compose, and more memory helps: 16 GB or more is what we'd suggest.
 
-## Development and local build
+## The music is yours to use
 
-Use Node.js 24 or later. Browser development (`npm start`) reads the engine and
-weights from a sibling `../lux-in-music` checkout by default; overrides are below.
-The packaged app uses its bundled engine and its own data folder instead.
+LVX in Radio is powered by [YuE2](https://github.com/multimodal-art-projection/YuE) and [audio.cpp](https://github.com/0xShug0/audio.cpp).
 
-If the Homebrew `node` is broken, use Node 24 directly:
-`export PATH=/opt/homebrew/opt/node@24/bin:$PATH`.
+- **If you make music as an individual,** you can use the model for free and publish, sell or otherwise monetize what you create, with no fees or royalties. Crediting YuE2 is welcome and optional.
+- **If you're a company,** commercial use of the model needs a separate license from its authors.
+- **Everyone** agrees to use it responsibly: nothing illegal, harmful or deceptive.
 
-```sh
-npm ci
-npm test              # fake engine, no GPU or model needed
-npm start             # browser UI at http://127.0.0.1:8787
-npm run fetch-engine  # pinned audio.cpp release, checksum verified
-npm run app           # Electron from source
-npm run dist          # build the arm64 DMG in dist/
-npm run fresh         # copy from the DMG and launch with empty temporary data
-```
+The model isn't part of the download: you accept its terms inside the app before getting it. In full, the YuE2 weights are [CC BY-NC 4.0 with an additional creator permission](https://github.com/multimodal-art-projection/YuE/blob/main/MODEL_LICENSE), and audio.cpp is Apache 2.0. This is a summary, not legal advice: the linked license is what counts.
 
-`npm run fresh` prints its temporary folder. It leaves your normal `.data/` and
-Application Support untouched. The packaged app only looks inside that temporary
-data folder for a model, unless you explicitly select an existing folder in setup. This tests app
-paths and first launch, but does not isolate the macOS account, Keychain or system
-caches. A separate macOS test account is the next level of isolation.
+---
 
-To reuse a test folder, set `LVX_FRESH_DIR` to an existing folder before running
-`npm run fresh`. A second launch focuses the existing app; quit it first for a new
-test session.
-
-## Releases
-
-Pushing a tag such as `v0.1.0` runs `.github/workflows/release.yml`: it tests the app, builds the arm64 DMG on GitHub and publishes it with its checksum. The workflow can also be started by hand for an existing tag.
-
-The first track took about two to three minutes in testing, depending on its length. Later tracks generate only when needed, and songs you already have fill the gaps.
-
-## Making Lux songs
-
-`lux/` holds the songs that ship with the app. To make more, on any Apple Silicon Mac with Node 24, ffmpeg (`brew install ffmpeg`) and a sibling `../lux-in-music` checkout holding the built engine and the weights (or the `LVX_ENGINE_BINARY`, `LVX_MODEL_SPECS` and `LVX_MODEL_DIR` variables):
-
-```sh
-npm run lux:songs -- generate --count 20          # keeps the Mac awake; Ctrl-C and rerun to continue
-npm run lux:songs -- import --station edm --out lux song.wav   # convert a file you already have
-npm run lux:songs -- manifest --out lux-songs --base-url <url> # list the songs for download
-```
-
-Songs land in `lux-songs/<station>/`. Listen, delete the `.mp3` of any you do not want, and the next `generate` makes a replacement. To publish them, see `docs/lux-feed.md`.
-
-## Third-party code
-
-`src/ui/assets/vendor/` holds React 18.3.1 (MIT), `qrcode-generator` 1.4.4 (MIT) and `jsQR` 1.4.0 (Apache-2.0).
-
-The app is built with Electron (MIT) and bundles [audio.cpp](https://github.com/0xShug0/audio.cpp) (Apache-2.0), downloaded at build time by `npm run fetch-engine` with its license.
-
-## Configuration
-
-| Variable | Purpose |
-| --- | --- |
-| `LVX_PORT` | App port |
-| `LVX_DATA_DIR` | Song library and engine logs. Defaults to `.data/` in the browser, Application Support in Electron |
-| `LVX_LUX_FEED` | URL of the Lux song manifest. No feed is checked when empty |
-| `LVX_ENGINE_BINARY` | Path to `audiocpp_server` |
-| `LVX_MODEL_SPECS` | Path to the audio.cpp `model_specs` directory |
-| `LVX_MODEL_DIR` | Directory holding the YuE2 weights and `sidecars/` |
-| `LVX_MODEL_FILE`, `LVX_VAE_FILE` | Weight file names inside `LVX_MODEL_DIR` |
-
-## License note
-
-The app does not contain the model: each user downloads it and accepts its terms. YuE2 weights are published under CC BY-NC 4.0 with an additional creator permission of 2026-09-16: individuals may use them free of charge and publish, sell or otherwise monetize the music they make, subject to responsible use. Companies need a commercial license for the weights. See the [model license](https://github.com/multimodal-art-projection/YuE/blob/main/MODEL_LICENSE).
-
-## Project skills
-
-Two repository skills preserve the product's conventions during future changes:
-`lvx-ui-design` for visuals and interaction, `lvx-implementation` for behavior and
-architecture. Claude Code discovers them in `.claude/skills/`; Codex discovers
-repository-relative links in `.agents/skills/`. `AGENTS.md` and `CLAUDE.md` route
-matching work to them. They are available for automatic selection in new sessions,
-and can also be explicitly invoked. Edit the canonical files in `.claude/skills/`
-so the two agents never drift apart.
+<p align="center">Want to build it yourself or help out? See <a href="DEVELOPMENT.md">DEVELOPMENT.md</a>.</p>

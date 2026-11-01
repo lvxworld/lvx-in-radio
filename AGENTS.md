@@ -12,7 +12,7 @@
 
 ## Build, Test, and Development Commands
 
-Node.js 24 or later. `npm start` runs the radio in a browser, `npm run app` runs the desktop app, `npm run dist` builds the DMG and `npm test` runs the unit tests. See `README.md` for configuration and releases.
+Node.js 24 or later. `npm start` runs the radio in a browser, `npm run app` runs the desktop app, `npm run dist` builds the DMG and `npm test` runs the unit tests. See `DEVELOPMENT.md` for configuration and releases.
 
 ## Coding Style & Naming Conventions
 

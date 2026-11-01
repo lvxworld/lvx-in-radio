@@ -54,7 +54,7 @@ in `Application Support/LVX Radio` despite the display name **LVX in Radio**.
 3. Patch the owner of the behavior; avoid parallel sources of truth. Handle error,
    cancellation, restart and ready states as part of the feature.
 4. Run the relevant checks, then `npm test` when behavior crosses modules. Check
-   Node 24 from README if the system Node is broken. Use the graphics skill for
+   Node 24 from DEVELOPMENT.md if the system Node is broken. Use the graphics skill for
    any visible changes and inspect browser console errors.
 5. For native changes, test the packaged app with a temporary `LVX_DATA_DIR`,
    playback continuing while hidden, restoration, and explicit quit stopping its
