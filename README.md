@@ -2,9 +2,9 @@
 
 <h3 align="center">A radio station that composes itself, on your Mac.</h3>
 
-<p align="center"><a href="docs/media/lvx-in-radio-demo.mp4"><img src="docs/media/lvx-in-radio-demo.gif" alt="LVX in Radio turning between stations, its light following the music" width="760"></a></p>
+https://github.com/user-attachments/assets/0f206c6e-dbc0-431f-83f9-1f97d99b9a27
 
-<p align="center"><a href="docs/media/lvx-in-radio-demo.mp4">Watch the demo with sound</a> · <a href="https://github.com/lvxworld/lvx-in-radio/releases/latest"><b>Download for Mac</b></a></p>
+<p align="center"><a href="https://github.com/lvxworld/lvx-in-radio/releases/latest"><b>Download for Mac</b></a></p>
 
 Pick a mood, turn the dials, press Tune In. LVX in Radio writes a station just for you, one new song after another, while you listen. No playlists to build, nothing to skip through, and the music is made right there on your Mac.
 
