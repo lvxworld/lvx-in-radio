@@ -286,6 +286,50 @@ export class RadioStation extends EventEmitter {
     return this.#catalog?.audioPath(trackId) ?? this.#library.audioPath(trackId);
   }
 
+  audioSource(trackId, mediaKey) {
+    const track = this.#session?.tracks.find(entry => entry.id === trackId);
+    if (track?.remoteUrl && mediaKey === track.mediaKey) return { url:track.remoteUrl, origin:track.remoteOrigin };
+    if (mediaKey) return null;
+    const path = this.audioPath(trackId);
+    return path ? { path } : null;
+  }
+
+  /** Reconcile only radio queues; a generation job is independent of this. */
+  catalogChanged({ reset = false } = {}) {
+    const session = this.#session;
+    if (session?.lux) {
+      const current = session.tracks.find(track => track.id === session.playback.trackId);
+      let record = this.#catalog.station(session.station.id);
+      if (reset && (!record || current?.remoteUrl)) {
+        record ??= this.#catalog.stations().find(station => this.#catalog.countForStation(station.id) > 0);
+        if (record) { session.station = record; session.config = record.config; }
+        session.tracks = []; session.playback = { trackId:null, positionSec:0, playing:false, at:Date.now() };
+      } else {
+        if (record) session.station = record;
+        session.tracks = current ? [current] : [];
+      }
+      const excluded = new Set(session.tracks.map(track => track.id));
+      if (record) for (;;) {
+        const song = this.#catalog.pick(record.id, excluded);
+        if (!song) break;
+        excluded.add(song.id); this.#appendSong(session, song);
+      }
+      session.listed = true;
+      session.error = record && !session.tracks.length ? 'This station has no playable songs. Refresh stations or tune to another station.' : null;
+    }
+    this.emit('change');
+  }
+
+  playbackFailed(trackId, mediaKey) {
+    const session = this.#session;
+    const track = session?.tracks.find(entry => entry.id === trackId && entry.mediaKey === mediaKey && entry.remoteUrl);
+    if (!track) return;
+    this.#catalog.failRemote(trackId);
+    session.tracks = session.tracks.filter(entry => entry !== track);
+    if (session.playback.trackId === trackId) session.playback.trackId = null;
+    this.catalogChanged();
+  }
+
   engineStatus() {
     return this.#availability();
   }
@@ -293,7 +337,7 @@ export class RadioStation extends EventEmitter {
   snapshot() {
     const session = this.#session;
     const stations = [...(this.#catalog?.stations() ?? []), ...this.#stations.list()].map(
-      ({ id, k, name, quote, config, lastPlayedAt, firstSeed, lux = false }) => ({
+      ({ id, k, name, quote, config, lastPlayedAt, firstSeed, lux = false, live = false, genre }) => ({
         id,
         k,
         name,
@@ -302,6 +346,8 @@ export class RadioStation extends EventEmitter {
         lastPlayedAt,
         firstSeed,
         lux,
+        live,
+        genre,
         songCount: lux ? this.#catalog.countForStation(id) : this.#library.countForStation(id),
       }),
     );
@@ -309,7 +355,7 @@ export class RadioStation extends EventEmitter {
     if (!session) return { stationId: null, station: null, stations, tracks: [], error: null, generation: null, preparation, job: this.#jobSnapshot(), arrival: this.#arrival };
     return {
       stationId: session.id,
-      station: stations.find(({ id }) => id === session.station.id),
+      station: stations.find(({ id }) => id === session.station.id) ?? { ...session.station, unavailable:true },
       stations,
       error: session.error,
       tracks: session.tracks,
@@ -485,6 +531,7 @@ export class RadioStation extends EventEmitter {
       title: song.title,
       status: 'ready',
       source: 'library',
+      ...(song.remoteUrl ? { source:'remote', remoteUrl:song.remoteUrl, remoteOrigin:song.remoteOrigin, mediaKey:song.mediaKey } : {}),
       generation: song.generation,
       durationSec: song.durationSec,
       truncated: song.truncated,

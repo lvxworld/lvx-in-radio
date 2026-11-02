@@ -14,7 +14,8 @@
     "app": "electron .",
     "dist": "npm run fetch-engine && electron-builder --mac --arm64 --publish never && node scripts/clean-dist.js",
     "fresh": "sh scripts/fresh-launch.sh",
-    "test:menu-bar": "electron tests/electron/menu-bar-smoke.js"
+    "test:menu-bar": "electron tests/electron/menu-bar-smoke.js",
+    "test:live-ui": "electron tests/electron/live-radio-smoke.js"
   },
   "devDependencies": {
     "electron": "^45.2.1",

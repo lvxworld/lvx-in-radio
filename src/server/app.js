@@ -76,13 +76,13 @@ async function sendFile(request, response, path, contentType) {
   createReadStream(path).pipe(response);
 }
 
-function streamEvents(station, request, response) {
+function streamEvents(station, request, response, snapshot = () => station.snapshot()) {
   response.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
   });
-  const send = () => response.write(`data: ${JSON.stringify(station.snapshot())}\n\n`);
+  const send = () => response.write(`data: ${JSON.stringify(snapshot())}\n\n`);
   send();
   station.on('change', send);
   request.once('close', () => station.off('change', send));
@@ -92,8 +92,22 @@ function streamEvents(station, request, response) {
  * Local API and UI host. Electron can run this unchanged from its main process
  * and point a window at the returned address.
  */
-export function createApp({ station, uiDir, readGpu = async () => null, setup }) {
+export function createApp({ station, uiDir, readGpu = async () => null, setup, live }) {
   const routes = {
+    'GET /api/live': (request, response) => sendJson(response, 200, live?.snapshot() ?? { choiceMade:true, enabled:false }),
+    'POST /api/live/settings': async (request, response) => {
+      if (!live) throw new HttpError(503, 'Live stations are unavailable.');
+      sendJson(response, 200, await live.configure(await readJson(request)));
+    },
+    'POST /api/live/refresh': async (request, response) => {
+      await readJson(request);
+      if (!live) throw new HttpError(503, 'Live stations are unavailable.');
+      await live.refresh(); sendJson(response, 200, live.snapshot());
+    },
+    'POST /api/playback/error': async (request, response) => {
+      const { trackId, mediaKey } = await readJson(request);
+      station.playbackFailed(trackId, mediaKey); sendJson(response, 200, { ok:true });
+    },
     'GET /api/setup': async (request, response) => sendJson(response, 200, setup ? await setup.snapshot() : { ...(await station.engineStatus()), status: 'idle' }),
     'POST /api/setup/download': async (request, response) => {
       const { acceptLicense } = await readJson(request);
@@ -158,13 +172,16 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup })
     },
     'GET /api/engine': async (request, response) => sendJson(response, 200, await station.engineStatus()),
     'GET /api/gpu': async (request, response) => sendJson(response, 200, { percent: await readGpu() }),
-    'GET /api/events': (request, response) => streamEvents(station, request, response),
+    'GET /api/events': (request, response) => streamEvents(station, request, response, () => ({ ...station.snapshot(), ...(live ? { live:live.snapshot() } : {}) })),
   };
 
-  const serveAudio = async (request, response, trackId) => {
-    const path = station.audioPath(trackId);
-    if (!path) throw new HttpError(404, 'Song not available');
-    await sendFile(request, response, path, AUDIO_TYPES[extname(path)]);
+  const serveAudio = async (request, response, trackId, mediaKey) => {
+    const source = station.audioSource(trackId, mediaKey);
+    if (!source) throw new HttpError(404, 'Song not available');
+    if (source.url) {
+      if (!live) throw new HttpError(503, 'Live stations are unavailable.');
+      await live.stream(request, response, source);
+    } else await sendFile(request, response, source.path, AUDIO_TYPES[extname(source.path)]);
   };
 
   const serveUi = async (request, response, pathname) => {
@@ -172,18 +189,20 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup })
     const path = join(uiDir, relative);
     const contentType = CONTENT_TYPES[extname(path)];
     if (!contentType || !path.startsWith(uiDir + sep)) throw new HttpError(404, 'Not found');
+    if (extname(path) === '.html') response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
     await sendFile(request, response, path, contentType);
   };
 
   const handle = async (request, response, allowedHost) => {
     // A web page must not reach this server through DNS rebinding.
     if (request.headers.host !== allowedHost()) throw new HttpError(403, 'Forbidden');
-    const { pathname } = new URL(request.url, 'http://localhost');
+    if (request.headers.origin && request.headers.origin !== `http://${allowedHost()}`) throw new HttpError(403, 'Forbidden');
+    const { pathname, searchParams } = new URL(request.url, 'http://localhost');
     const route = routes[`${request.method} ${pathname}`];
     if (route) return route(request, response);
     if (request.method !== 'GET') throw new HttpError(405, 'Method not allowed');
     const audio = /^\/audio\/([\w-]+)$/.exec(pathname);
-    if (audio) return serveAudio(request, response, audio[1]);
+    if (audio) return serveAudio(request, response, audio[1], searchParams.get('v'));
     return serveUi(request, response, pathname);
   };
 

@@ -1,0 +1,97 @@
+// Real renderer, real MP3, isolated state; no model, generation or DMG.
+import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync } from 'node:fs';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { setTimeout as delay } from 'node:timers/promises';
+import { app, BrowserWindow } from 'electron';
+import { loadConfig } from '../../src/config.js';
+import { startRadio } from '../../src/start.js';
+import { createFeedFixture } from '../fixtures/live-feed.js';
+import { listen } from '../../src/server/app.js';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const data = mkdtempSync(join(tmpdir(),'lvx-live-ui-'));
+const shots = '/private/tmp/lvx-live-ui'; mkdirSync(shots,{recursive:true});
+mkdirSync(join(data,'chromium'));app.setPath('userData',join(data,'chromium'));
+app.commandLine.appendSwitch('autoplay-policy','no-user-gesture-required');
+app.on('window-all-closed',()=>{});
+app.whenReady().then(async () => {
+app.dock?.hide();
+let radio, host, window;
+const errors=[];
+const waitFor = async (check,label) => { const until=Date.now()+12000;do{if(await check())return;await delay(40);}while(Date.now()<until);throw new Error('Timed out: '+label); };
+try {
+  const music=join(data,'radio');await mkdir(join(music,'drone'),{recursive:true});
+  await writeFile(join(music,'drone/broken.mp3'),'This is not an MP3.');
+  const manifest=JSON.parse(await readFile(join(root,'lux/manifest.json'),'utf8'));
+  await copyFile(join(root,'lux',manifest.songs[0].file),join(music,'drone/first.mp3'));
+  const document={schemaVersion:1,stations:[{id:'lux-drone',name:'LVX Drone',genre:'Drone',tracks:[{id:'broken',title:'broken',url:'drone/broken.mp3'},{id:'first',title:'first',url:'drone/first.mp3'}]}]};
+  const files=new Map([['/drone/broken.mp3',join(music,'drone/broken.mp3')],['/drone/first.mp3',join(music,'drone/first.mp3')]]);
+  const folder=createFeedFixture(document,files);host=folder.server;const source=await listen(host);
+  radio=await startRadio({...loadConfig({LVX_STATION_CATALOG_URL:source+'/catalog.json'},{dataDir:join(data,'state'),modelDir:join(data,'no-model'),engineBinary:join(data,'no-engine'),modelSpecs:join(data,'no-specs')}),port:0});
+  window=new BrowserWindow({show:false,width:1120,height:720,useContentSize:true,webPreferences:{contextIsolation:true,sandbox:true,nodeIntegration:false,backgroundThrottling:false,preload:join(root,'src/electron/preload.cjs')}});
+  window.webContents.setAudioMuted(true);
+  window.webContents.on('console-message',(event,level,message)=>{if(level===3)errors.push(message);});
+  const read=expression=>window.webContents.executeJavaScript(expression,true);
+  const capture=async name=>{await read('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');await writeFile(join(shots,name),(await window.webContents.capturePage()).toPNG());};
+  await window.loadURL(radio.address+'/?shell=app');
+  await waitFor(()=>read("!!document.querySelector('.lvx-settings[open] .lvx-welcome:not([hidden])')"),'first-run choice');
+  await read('document.fonts.ready.then(()=>true)');
+  await capture('welcome.png');
+  assert.equal((await (await fetch(radio.address+'/api/live')).json()).enabled,false);
+  await read("document.querySelector('.lvx-keep-local').click()");
+  await waitFor(()=>read("!document.querySelector('.lvx-settings').open&&!!document.querySelector('.fm-band')"),'included station player');
+  await waitFor(()=>read("!!document.querySelector('.air-station')?.textContent"),'station name');
+  assert.equal(await read("(()=>{const a=document.querySelector('.lvx-settings-open').getBoundingClientRect(),b=document.querySelector('.native-tray-link').getBoundingClientRect();return a.left>=b.right+5})()"),true,'settings must not overlap the menu-bar button');
+  await capture('included.png');
+  await read("document.querySelector('[aria-label=Settings]').click()");
+  await waitFor(()=>read("!!document.querySelector('.lvx-settings[open] .lvx-settings-body:not([hidden])')"),'official settings');
+  await read("document.querySelector('.lvx-live-power').click()");
+  await capture('settings.png');
+  const fits=await read("(()=>{const d=document.querySelector('.lvx-settings');const r=d.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:innerHeight,scroll:d.scrollHeight,client:d.clientHeight}})()");
+  assert.ok(fits.top>=0&&fits.bottom<=fits.height,'settings must fit the 720px viewport');
+  assert.ok(fits.client>250,'the settings dialog must have visible content');
+  assert.ok(fits.scroll<=fits.client+1,'settings should not require scrolling at 1120 × 720');
+  await read("document.querySelector('.lvx-settings-save').click()");
+  await waitFor(async()=>{const live=await(await fetch(radio.address+'/api/live')).json();return live.status==='ready';},'catalog refresh');
+  await waitFor(()=>read("!!document.querySelector('.live-refresh')"),'visible manual refresh');
+  for(let i=0;i<8;i++){
+    if(await read("document.querySelector('.air-station')?.textContent==='LVX Drone'"))break;
+    await read("document.querySelector('.fm-band').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}))");await delay(180);
+  }
+  await waitFor(()=>read("document.querySelector('.air-station')?.textContent==='LVX Drone'"),'tune live station through FM keyboard');
+  await delay(1400);
+  const status=await read("document.querySelector('.transport-timeline span')?.textContent");
+  assert.notEqual(status,'0:00','real remote MP3 must start decoding');
+  await waitFor(()=>read("!!document.querySelector('.live-refresh:not(.is-updated):not(.is-refreshing)')"),'idle refresh control');
+  await capture('live-playing.png');
+  const refreshWidth=await read("document.querySelector('.live-refresh').getBoundingClientRect().width");
+  await copyFile(join(root,'lux',manifest.songs[1].file),join(music,'drone/new-song.mp3'));
+  await mkdir(join(music,'metal'));await copyFile(join(root,'lux',manifest.songs[1].file),join(music,'metal/metal.mp3'));
+  document.stations[0].tracks.push({id:'new-song',title:'new song',url:'drone/new-song.mp3'});
+  document.stations.push({id:'lux-metal',name:'LVX Metal',genre:'Metal',tracks:[{id:'metal',title:'metal',url:'metal/metal.mp3'}]});
+  files.set('/drone/new-song.mp3',join(music,'drone/new-song.mp3'));files.set('/metal/metal.mp3',join(music,'metal/metal.mp3'));
+  const scan=folder.catalog.scan;folder.catalog.scan=async()=>{await delay(600);return scan();};
+  await read("document.querySelector('.live-refresh').click()");
+  await waitFor(()=>read("!!document.querySelector('.live-refresh.is-refreshing:disabled')"),'visible refresh progress');
+  await capture('refresh-checking.png');
+  assert.equal(await read("document.querySelector('.live-refresh').getBoundingClientRect().width"),refreshWidth,'refresh feedback must not move the toolbar');
+  await waitFor(async()=>{const live=await(await fetch(radio.address+'/api/live')).json();return live.stationCount===2&&!live.refreshing;},'new station discovered');
+  await waitFor(()=>read("document.querySelector('.song-list')?.textContent?.includes('new song')||document.body.textContent.includes('new song')"),'new song appears');
+  await capture('refresh-updated.png');
+  const after=await read("document.querySelector('.transport-timeline span')?.textContent");assert.notEqual(after,'0:00','refresh keeps playback position');
+  await read("document.querySelector('[aria-label=Settings]').click()");await read("document.querySelector('.lvx-live-power').click();document.querySelector('.lvx-settings-save').click()");
+  await waitFor(async()=>!(await(await fetch(radio.address+'/api/live')).json()).enabled,'disable Live');
+  await waitFor(()=>read("document.querySelector('.air-station')?.textContent!=='LVX Drone'"),'return to included station');
+  await window.loadURL(radio.address+'/?shell=app');
+  await waitFor(()=>read("!!document.querySelector('.fm-band')&&!document.querySelector('.setup-screen')&&!document.querySelector('.lvx-settings').open"),'restart preserves radio choice without forcing model setup');
+  await window.setContentSize(1280,800);await capture('radio-1280.png');
+  assert.equal(errors.length,0,errors.join('\n'));
+  console.log('PASS official UI: welcome choice, included playback, Settings at 1120×720, live FM tuning, broken MP3 skipped, real MP3 decoding, refresh/new station/new song without restarting, Live off, persisted choice after reload, 1280×800 layout, no renderer errors.');
+  console.log('Screenshots: '+shots);
+} catch(error) { console.error(error);if(window)console.error('Renderer errors:',errors);process.exitCode=1; }
+finally { window?.destroy();await radio?.close();host?.closeAllConnections();host?.close();await rm(data,{recursive:true,force:true});app.exit(process.exitCode||0); }
+});

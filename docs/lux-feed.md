@@ -1,4 +1,9 @@
-# Publishing LVX station songs
+# Publishing LVX station songs (legacy)
+
+The initial full-download feed below remains useful for older versions and local
+song tooling. The current app keeps its downloaded songs but no longer runs this
+downloader at startup. For the opt-in folder catalog, Settings and streaming, see
+[LVX Live](live-radio.md).
 
 The app reads one `manifest.json` and downloads the songs it lists. Everything lives in the assets of a single GitHub release in a separate repository, not in Git, so the repository stays small and adding songs creates no history.
 

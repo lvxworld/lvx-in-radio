@@ -1,7 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
+import { createHash } from 'node:crypto';
 
-import { validateConfig } from './style.js';
+import { GENRES, validateConfig } from './style.js';
 
 export const MANIFEST_VERSION = 1;
 
@@ -96,6 +97,10 @@ export class LuxCatalog {
   #downloadDir;
   #statePath;
   #songs = new Map();
+  #liveStations = [];
+  #liveSongs = new Map();
+  #retired = new Map();
+  #failed = new Set();
   #state = { songs: {}, stations: {} };
 
   constructor({ bundledDir, downloadDir, statePath }) {
@@ -128,7 +133,7 @@ export class LuxCatalog {
   }
 
   /** Station records in the same shape as a listener's saved stations. */
-  stations() {
+  bundledStations() {
     return LUX_STATIONS.map((station) => ({
       ...station,
       lux: true,
@@ -136,12 +141,43 @@ export class LuxCatalog {
     }));
   }
 
+  stations() {
+    const all = new Map(this.bundledStations().map(station => [station.id, station]));
+    for (const station of this.#liveStations) all.set(station.id, { ...station, lastPlayedAt: this.#state.stations[station.id] ?? null });
+    return [...all.values()];
+  }
+
+  setLiveStations(stations) {
+    for (const [id, song] of this.#liveSongs) this.#retired.set(id, song);
+    while (this.#retired.size > 10000) this.#retired.delete(this.#retired.keys().next().value);
+    this.#liveSongs = new Map(); this.#failed.clear();
+    this.#liveStations = stations.map(station => {
+      const bundled = LUX_STATIONS.find(entry => entry.id === station.id);
+      // Remote genre names never become generation controls or model requests.
+      const genre = GENRES.find(genre => genre.toLowerCase() === station.genre.toLowerCase()) ?? 'Pop';
+      const config = bundled?.config ?? stationConfig(genre,50,100,30);
+      for (const track of station.tracks) {
+        const existing = this.#songs.get(track.id);
+        const id = existing?.station === station.id ? track.id : `live-${createHash('sha256').update(station.id + '\0' + track.id).digest('hex').slice(0,32)}`;
+        this.#liveSongs.set(id, { ...track, id, station: station.id, generation: config, createdAt: new Date(0).toISOString(), remoteUrl: track.url, remoteOrigin: station.catalogUrl, mediaKey: createHash('sha256').update(station.catalogUrl + '\0' + track.url).digest('hex').slice(0,24) });
+      }
+      return { id: station.id, k: station.k, name: station.name, quote: station.description, genre: station.genre, config, lux:true, live:true };
+    });
+  }
+
+  failRemote(id) { this.#failed.add(id); }
+
+  #stationSongs(id) {
+    const live = [...this.#liveSongs.values()].filter(song => song.station === id && !this.#failed.has(song.id));
+    return live.length ? live : [...this.#songs.values()].filter(song => song.station === id);
+  }
+
   station(id) {
     return this.stations().find((station) => station.id === id) ?? null;
   }
 
   has(songId) {
-    return this.#songs.has(songId);
+    return this.#songs.has(songId) || this.#liveSongs.has(songId) || this.#retired.has(songId);
   }
 
   audioPath(songId) {
@@ -150,7 +186,7 @@ export class LuxCatalog {
 
   countForStation(stationId) {
     let count = 0;
-    for (const song of this.#songs.values()) {
+    for (const song of this.#stationSongs(stationId)) {
       if (song.station === stationId && !this.#state.songs[song.id]?.disliked) count += 1;
     }
     return count;
@@ -161,7 +197,7 @@ export class LuxCatalog {
    * disliked keeps playing them: a radio should not fall silent over that.
    */
   pick(stationId, excludedIds) {
-    const all = [...this.#songs.values()].filter((song) => song.station === stationId && !excludedIds.has(song.id));
+    const all = this.#stationSongs(stationId).filter((song) => !excludedIds.has(song.id));
     const liked = all.filter((song) => !this.#state.songs[song.id]?.disliked);
     const candidates = (liked.length ? liked : all).map((song) => ({ ...song, ...this.#state.songs[song.id] }));
     candidates.sort(
@@ -188,7 +224,7 @@ export class LuxCatalog {
   }
 
   update(songId, changes) {
-    if (!this.#songs.has(songId)) throw new RangeError('Unknown song');
+    if (!this.has(songId)) throw new RangeError('Unknown song');
     this.#state.songs[songId] = { ...this.#state.songs[songId], ...changes };
     return this.#saveState();
   }

@@ -25,6 +25,10 @@ Pick a mood, turn the dials, press Tune In. LVX in Radio writes a station just f
 
 There's nothing else to install.
 
+## LVX Live (optional)
+
+On first launch the app asks if you'd like **LVX Live**: new songs and stations from the LVX catalog, streamed to you as you listen. There's nothing to set up. Say yes or no, and change your mind any time in **Settings**. Your included stations and songs always stay, and you can listen without downloading the model. The model is only needed to create your own stations.
+
 **You need** a Mac with Apple Silicon and about 5 GB of free space. A new song takes a few minutes to compose, and more memory helps: 16 GB or more is what we'd suggest.
 
 ## How to use it

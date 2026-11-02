@@ -48,6 +48,9 @@ window.LvxRadio = {
   playback(state) {
     return this.post('/api/playback', state);
   },
+  liveSettings(settings) { return this.post('/api/live/settings', settings); },
+  refreshStations() { return this.post('/api/live/refresh', {}); },
+  playbackError(trackId, mediaKey) { return this.post('/api/playback/error', { trackId, mediaKey }); },
 
   feedback(trackId, type) {
     return this.post('/api/feedback', { trackId, type });
@@ -82,7 +85,7 @@ window.LvxRadio = {
     return () => events.close();
   },
 
-  audioUrl(trackId) {
-    return `/audio/${trackId}`;
+  audioUrl(trackId, mediaKey) {
+    return `/audio/${trackId}${mediaKey ? '?v=' + encodeURIComponent(mediaKey) : ''}`;
   },
 };

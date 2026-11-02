@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LUX = resolve(ROOT, '../lux-in-music');
 const YUE2_RELEASE = 'cca74d8980c00f30ab8d52248a367c01ad633ec2';
+// The official catalog, published from the lvx-radio-feeds repository. Listeners never type it.
+export const DEFAULT_STATION_CATALOG_URL = 'https://lvxworld.github.io/lvx-radio-feeds/catalog.json';
 
 /** POC defaults reuse the engine and weights already built by lux-in-music. */
 export function loadConfig(env = process.env, overrides = {}) {
@@ -13,6 +15,7 @@ export function loadConfig(env = process.env, overrides = {}) {
     uiDir: join(ROOT, 'src/ui'),
     libraryDir: join(dataDir, 'library'),
     stationsFile: join(dataDir, 'stations.json'),
+    liveRadio: { path: join(dataDir, 'live-radio.json'), defaultUrl: env.LVX_STATION_CATALOG_URL ?? DEFAULT_STATION_CATALOG_URL },
     lux: {
       bundledDir: overrides.luxDir ?? env.LVX_LUX_BUNDLED_DIR ?? join(ROOT, 'lux'),
       downloadDir: join(dataDir, 'lux'),

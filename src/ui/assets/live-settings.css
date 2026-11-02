@@ -1,0 +1,70 @@
+.lvx-settings{color:#f3ece2;background:#171411;border:1px solid #51402e;border-radius:15px;padding:0;width:min(510px,calc(100vw - 36px));max-height:calc(100dvh - 40px);overflow:auto;box-shadow:0 24px 90px #000b;font-family:'Space Grotesk',sans-serif;scrollbar-width:thin}
+.lvx-settings::backdrop{background:#080706bf;backdrop-filter:blur(5px)}
+.lvx-settings [hidden]{display:none!important}.lvx-settings-form{padding:27px 30px}.lvx-settings-top{display:flex;justify-content:space-between;align-items:center;min-height:22px}.lvx-settings-kicker{font:500 9px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#a79a87}.lvx-settings-close{border:0;background:none;color:#a79a87;font:25px/1 'Space Grotesk',sans-serif;padding:0 4px;cursor:pointer}.lvx-settings h1{font-size:32px;font-weight:500;line-height:1.12;letter-spacing:-.045em;margin:12px 0}.lvx-settings p{font:12px/1.7 'Space Grotesk',sans-serif;color:#a79c8c;margin:0}.lvx-settings p strong{color:#e9dfd1;font-weight:500}.lvx-settings-logo{width:47px;height:47px;display:block;margin:17px 0 23px;object-fit:contain}.lvx-settings-reassurance{display:flex;gap:13px;background:#211a13;border:1px solid #473423;border-radius:8px;padding:17px;margin:22px 0}.lvx-settings-reassurance>i{width:6px;height:6px;border-radius:50%;background:#f2a33a;flex:none;margin-top:6px}.lvx-settings-reassurance strong{font-size:13px;font-weight:500}.lvx-settings-reassurance p{font-size:11px;margin-top:7px}.lvx-settings-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:22px}.lvx-settings button,.lvx-settings input,.lvx-settings select{font-family:'Space Grotesk',sans-serif}.lvx-settings-secondary,.lvx-settings-primary{font-size:11px;padding:10px 13px;border-radius:6px;cursor:pointer;white-space:nowrap}.lvx-settings-secondary{border:1px solid #58432d;background:#211a13;color:#e5d6c2}.lvx-settings-primary{border:1px solid #f2a33a;background:#f2a33a;color:#211507}.lvx-settings button:disabled{opacity:.4;cursor:default}.lvx-settings button:focus-visible,.lvx-settings input:focus-visible,.lvx-settings select:focus-visible,.lvx-settings summary:focus-visible{outline:2px solid #f2a33a;outline-offset:4px}.lvx-settings .lvx-settings-note{font-size:10px;line-height:1.65;margin-top:10px;color:#9b907f}.lvx-settings-section{padding-top:22px;display:block;margin-bottom:14px}.lvx-live-power-row{display:flex;align-items:center;gap:15px;padding:3px 0 12px}.lvx-live-power-row>div{flex:1}.lvx-live-power-row strong{font-size:15px;font-weight:500}.lvx-live-power-row p{font-size:11px;margin-top:5px}.lvx-live-state{font:500 10px 'JetBrains Mono',monospace;letter-spacing:.1em;color:#9b907f}.lvx-live-power{position:relative;flex:none;width:39px;height:39px;border-radius:50%;border:1px solid #4d4439;background:linear-gradient(#302922,#171310);box-shadow:0 3px 7px #0006,inset 0 1px #ffffff12;cursor:pointer}.lvx-live-power i{position:absolute;width:15px;height:15px;border:1.5px solid #a29888;border-top-color:transparent;border-radius:50%;left:11px;top:12px}.lvx-live-power b{position:absolute;width:1.5px;height:9px;background:#a29888;top:9px;left:18px}.lvx-live-power[aria-pressed=true]{background:radial-gradient(circle at 50% 35%,#ffe0a6,#f2a33a 67%,#bc7027);border-color:#f2a33a;box-shadow:0 0 0 3px #171411,0 0 0 4px #71512d,0 0 16px #f2a33a30}.lvx-live-power[aria-pressed=true] i{border-color:#28190b;border-top-color:transparent}.lvx-live-power[aria-pressed=true] b{background:#28190b}.lvx-settings .lvx-live-explanation{font-size:11px;border-bottom:1px solid #332a21;padding:0 0 16px}.lvx-catalog-details{margin-top:16px}.lvx-catalog-details summary{font-size:12px;color:#d9cbb9;cursor:pointer}.lvx-catalog-details label,.lvx-refresh-label{font-size:11px;display:block;margin:14px 0 8px;color:#b8aa96}.lvx-settings input,.lvx-settings select{box-sizing:border-box;display:block;width:100%;padding:10px 11px;background:#100e0b;border:1px solid #4c3b29;border-radius:6px;color:#eee2d1;font-size:12px;color-scheme:dark}.lvx-settings input:disabled,.lvx-settings select:disabled{opacity:.45}.lvx-live-status{display:flex;align-items:center;gap:8px;min-height:30px;margin-top:11px;color:#ab9c87;font-size:10px;line-height:1.6}.lvx-live-status i{width:5px;height:5px;border-radius:50%;background:#a89b85;flex:none}.lvx-live-status[data-state=ready] i{background:#f2a33a}.lvx-live-status[data-state=unavailable]{color:#e6ad88}.lvx-live-status[data-state=unavailable] i{background:#e6ad88}.lvx-settings-model{border-top:1px solid #332a21;padding-top:18px;margin-top:13px;display:flex;gap:15px;align-items:center;justify-content:space-between}.lvx-settings-model .lvx-settings-kicker{display:block;font-size:8px;margin-bottom:9px}.lvx-settings-model strong{display:block;font-size:13px;font-weight:500;margin-bottom:5px}.lvx-settings-model p{font-size:10px}.lvx-settings-error{margin-top:16px!important;color:#f1af89!important;font-size:12px!important}.live-radio-note{margin:0 0 12px;color:#b2a18b;font:11px/1.6 'Space Grotesk',sans-serif}.live-refresh{font-size:11px!important;white-space:nowrap}.setup-listen{display:block;margin-top:16px!important}.lvx-settings-open{font-family:'Space Grotesk',sans-serif!important;font-size:11px!important;display:flex;align-items:center;gap:5px}
+@media(max-width:600px){.lvx-settings-form{padding:23px}.lvx-settings h1{font-size:29px}.lvx-settings-actions{flex-wrap:wrap}.lvx-settings-model{align-items:start}.lvx-settings-model .lvx-settings-secondary{font-size:10px;padding:9px}}
+.window-titlebar .lvx-settings-open{width:auto;min-width:78px;height:32px;justify-content:center;padding:0 2px;white-space:nowrap}.window-titlebar .native-tray-link{right:115px}.lvx-settings-open svg{flex:none}.lvx-live-status[data-state=pending]{color:#d8b47f}
+
+/* A small receiver control: a quiet orbit until the listener asks for new music. */
+.live-refresh {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 8px;
+  width: 174px;
+  height: 38px;
+  padding: 3px 12px 3px 4px;
+  border: 1px solid #79562f;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #30251a, #1a1611 75%);
+  box-shadow: inset 0 1px 0 #ffe1ad12, 0 2px 5px #0003;
+  color: #ebd8bc;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.live-refresh:hover:not(:disabled) {
+  border-color: #d99a48;
+  background: linear-gradient(160deg, #3b2c1c, #211911 75%);
+  box-shadow: inset 0 1px 0 #ffe1ad18, 0 0 15px #f2a33a16;
+}
+.live-refresh:focus-visible { outline: 2px solid #f2a33a; outline-offset: 4px; }
+.live-refresh:active:not(:disabled) { box-shadow: inset 0 2px 6px #0005; }
+.live-refresh-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, #f2a33a12, transparent 70%);
+  color: #f2b55e;
+}
+.live-refresh-orbit { transition: transform .35s ease; }
+.live-refresh-track { stroke: currentColor; stroke-width: .65; opacity: .26; }
+.live-refresh-ticks { stroke: currentColor; stroke-width: 1; opacity: .55; }
+.live-refresh-arrows { stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.live-refresh-core { fill: currentColor; opacity: .65; }
+.live-refresh:hover:not(:disabled) .live-refresh-orbit { transform: rotate(35deg); }
+.live-refresh-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.live-refresh-copy strong { font: 500 11px/1 'Space Grotesk', sans-serif; white-space: nowrap; }
+.live-refresh-copy small { color: #a59073; font: 400 8.5px/1.1 'JetBrains Mono', monospace; letter-spacing: .04em; white-space: nowrap; }
+.live-refresh-check { position: absolute; inset: 0; opacity: 0; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.live-refresh-check circle { opacity: .35; stroke-width: .8; }
+.live-refresh.is-refreshing { cursor: progress; border-color: #a97d42; }
+.live-refresh.is-refreshing .live-refresh-orbit { animation: live-refresh-turn 1.6s linear infinite; }
+.live-refresh.is-updated { border-color: #ae7c3e; }
+.live-refresh.is-updated .live-refresh-orbit { opacity: 0; }
+.live-refresh.is-updated .live-refresh-check { opacity: 1; }
+.live-refresh.is-unavailable { border-color: #88624b; }
+.live-refresh.is-unavailable .live-refresh-dial { color: #e5a17a; }
+.lvx-settings-refresh { display: inline-flex; align-items: center; gap: 7px; }
+.lvx-settings-refresh svg { flex: none; color: #e9b66d; }
+.lvx-settings-refresh.is-refreshing svg { animation: live-refresh-turn 1.6s linear infinite; }
+@keyframes live-refresh-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .live-refresh, .live-refresh-orbit { transition: none; }
+  .live-refresh.is-refreshing .live-refresh-orbit, .lvx-settings-refresh.is-refreshing svg { animation: none; }
+  .live-refresh:hover:not(:disabled) .live-refresh-orbit { transform: none; }
+}
+html:not([data-shell='app']) .window-titlebar .lvx-settings-open{right:112px}

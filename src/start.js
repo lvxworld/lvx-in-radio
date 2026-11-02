@@ -4,7 +4,7 @@ import { engineAvailability } from './engine/availability.js';
 import { readGpuPercent } from './engine/gpu.js';
 import { Library } from './radio/library.js';
 import { LuxCatalog, RESERVED_FREQUENCIES } from './radio/lux-catalog.js';
-import { syncFeed } from './radio/lux-feed.js';
+import { LiveRadio } from './radio/live-radio.js';
 import { RadioStation } from './radio/station.js';
 import { StationStore } from './radio/stations.js';
 import { createApp, listen } from './server/app.js';
@@ -18,9 +18,12 @@ export async function startRadio(config) {
   await stations.load();
   const catalog = new LuxCatalog(config.lux);
   await catalog.load();
+  let station;
+  const live = new LiveRadio({ ...config.liveRadio, catalog, stations, onCatalogChange: change => station?.catalogChanged(change) });
+  await live.load();
   const setup = new ModelSetup(config.engine);
   await setup.initialize();
-  const station = new RadioStation({
+  station = new RadioStation({
     engine: new AudioCppEngine(config.engine),
     library,
     stations,
@@ -30,12 +33,11 @@ export async function startRadio(config) {
       return { ...files, ready: files.ready && (await setup.snapshot()).ready };
     },
   });
-  const server = createApp({ station, uiDir: config.uiDir, readGpu: readGpuPercent, setup });
+  live.on('change', () => station.emit('change'));
+  const server = createApp({ station, uiDir: config.uiDir, readGpu: readGpuPercent, setup, live });
   const address = await listen(server, config.port);
 
-  syncFeed({ url: config.lux.feedUrl, catalog, onSong: () => station.emit('change') }).catch((error) => {
-    console.error('Could not check for new Lux songs:', error.message);
-  });
+  live.start();
 
   return {
     address,
@@ -43,7 +45,7 @@ export async function startRadio(config) {
     async close() {
       server.closeAllConnections();
       server.close();
-      await Promise.all([setup.close(), station.close()]);
+      await Promise.all([live.close(), setup.close(), station.close()]);
     },
   };
 }

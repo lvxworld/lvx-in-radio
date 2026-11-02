@@ -53,6 +53,11 @@ export class StationStore {
     return this.#stations;
   }
 
+  /** Live stations take only unused slots, never relocate listener stations. */
+  reserveFrequencies(frequencies) {
+    this.#reserved = [...new Set(frequencies)];
+  }
+
   get(id) {
     return this.#stations.find((station) => station.id === id) ?? null;
   }
@@ -92,6 +97,7 @@ export class StationStore {
 
   /** Takes the free frequency farthest from the others, recycling when full. */
   #freeFrequency() {
+    if (this.#reserved.length >= FREQUENCY_COUNT) throw new RangeError('The radio dial is full. Turn off LVX Live to create another station.');
     if (!this.#stations.length && !this.#reserved.includes(FIRST_FREQUENCY)) return FIRST_FREQUENCY;
     if (this.#stations.length >= FREQUENCY_COUNT - this.#reserved.length) {
       const oldest = this.#stations.reduce((a, b) => (a.lastPlayedAt < b.lastPlayedAt ? a : b));

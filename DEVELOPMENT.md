@@ -61,13 +61,19 @@ The app is built with Electron (MIT) and bundles [audio.cpp](https://github.com/
 | --- | --- |
 | `LVX_PORT` | App port |
 | `LVX_DATA_DIR` | Song library and engine logs. Defaults to `.data/` in the browser, Application Support in Electron |
-| `LVX_LUX_FEED` | URL of the Lux song manifest. No feed is checked when empty |
+| `LVX_STATION_CATALOG_URL` | Initial LVX Live catalog URL; first-run consent is required. Saved Settings take precedence |
+| `LVX_LUX_FEED` | Legacy manifest URL; startup downloading is retired. Existing downloads remain playable |
 | `LVX_ENGINE_BINARY` | Path to `audiocpp_server` |
 | `LVX_MODEL_SPECS` | Path to the audio.cpp `model_specs` directory |
 | `LVX_MODEL_DIR` | Directory holding the YuE2 weights and `sidecars/` |
 | `LVX_MODEL_FILE`, `LVX_VAE_FILE` | Weight file names inside `LVX_MODEL_DIR` |
 
 ## Project skills
+
+LVX Live integration is documented in [docs/live-radio.md](docs/live-radio.md).
+Music and catalog publishing live outside this repository; the official feed is
+[`lvx-radio-feeds`](https://github.com/lvxworld/lvx-radio-feeds). `npm run test:live-ui` checks the official
+renderer with real remote MP3 playback and isolated data, without a model or DMG.
 
 Two repository skills preserve the product's conventions during future changes:
 `lvx-ui-design` for visuals and interaction, `lvx-implementation` for behavior and
