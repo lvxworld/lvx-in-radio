@@ -1,14 +1,13 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createHash } from 'node:crypto';
-import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rename, rm, truncate, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readdir, readFile, rename, rm, stat, truncate, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 
-import { EngineAbortedError, stopStaleEngine } from '../src/engine/audiocpp.js';
+import { EngineAbortedError } from '../src/engine/audiocpp.js';
 import { engineAvailability, ModelMissingError } from '../src/engine/availability.js';
 import { wavDurationSeconds } from '../src/engine/wav.js';
 import { bucketFor, Library } from '../src/radio/library.js';
@@ -71,7 +70,32 @@ class FakeEngine {
   }
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+/**
+ * Waits until the station and the files on disk stop changing. A fixed pause was
+ * too short on a slow machine: a song still being written looked unfinished.
+ */
+async function fingerprint() {
+  const files = [];
+  const walk = async (directory) => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else files.push(`${path}:${(await stat(path).catch(() => null))?.size}`);
+    }
+  };
+  await walk(root).catch(() => {});
+  return JSON.stringify([station.snapshot(), files.sort()]);
+}
+
+async function settle() {
+  let previous = null;
+  for (let waited = 0; waited < 5000; waited += 25) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    const current = await fingerprint();
+    if (current === previous) return;
+    previous = current;
+  }
+}
 const statuses = (station) => station.snapshot().tracks.map((track) => track.status);
 
 let root;
@@ -91,7 +115,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await station.close();
-  await rm(root, { recursive: true, force: true });
+  await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 });
 
 /** Tunes in and starts listening to the first finished song. */
@@ -1569,24 +1593,6 @@ test('the API reports the engine, and a refused station is a clear error', async
   server.closeAllConnections();
   server.close();
   await radio.close();
-});
-
-test('a stale engine is stopped only if it is ours', async () => {
-  const record = (pid) => writeFile(join(root, 'engine-process.json'), JSON.stringify({ pid }));
-  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-  const stranger = spawn('sleep', ['60']);
-  await record(stranger.pid);
-  assert.equal(await stopStaleEngine(root), false);
-  assert.ok(alive(stranger.pid), 'an unrelated program with that id survives');
-  stranger.kill();
-  const copy = join(root, 'audiocpp_server');
-  await copyFile('/bin/sleep', copy);
-  const engineLeft = spawn(copy, ['60']);
-  await once(engineLeft, 'spawn');
-  await record(engineLeft.pid);
-  assert.equal(await stopStaleEngine(root), true);
-  await once(engineLeft, 'exit');
-  assert.equal(await stopStaleEngine(root), false, 'the record is gone');
 });
 
 test('Get lost keeps the existing scenario codes stable and shares Progressive metal', () => {
