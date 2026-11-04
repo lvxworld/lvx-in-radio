@@ -67,4 +67,4 @@
   .live-refresh.is-refreshing .live-refresh-orbit, .lvx-settings-refresh.is-refreshing svg { animation: none; }
   .live-refresh:hover:not(:disabled) .live-refresh-orbit { transform: none; }
 }
-html:not([data-shell='app']) .window-titlebar .lvx-settings-open{right:112px}
+.window-titlebar .lvx-settings-open{right:112px}

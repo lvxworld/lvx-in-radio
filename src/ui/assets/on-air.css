@@ -1441,7 +1441,6 @@ html[data-shell='app'] .desktop-menubar,
 html[data-shell='app'] .study-caption,
 html[data-shell='app'] .tray-panel,
 html[data-shell='app'] .restore-radio,
-html[data-shell='app'] .hide-window,
 html[data-shell='app'] .traffic-lights {
   display: none !important;
 }
@@ -1644,3 +1643,124 @@ html[data-shell='app'] .setup-window { height:100vh!important; min-height:0!impo
   50% { filter: brightness(1.12) saturate(1.08); }
 }
 @media (prefers-reduced-motion: reduce) { .tune-trigger > span:nth-child(2) { animation: none; } }
+
+/* ---------- Songs, tucked in at the right edge ----------
+   Only the first letters of each title peek out, faint. Hover (or focus) and the
+   titles slide in one after another; move away and they slide back out. */
+.air-songs {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  justify-self: stretch;
+  margin-top: 40px;
+  min-width: 0;
+  padding: 14px 0 14px 8px;
+  overflow: hidden;
+  outline: none;
+  cursor: default;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px);
+}
+
+.air-songs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.air-song {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 6px;
+  border-radius: 12px;
+  color: #f3ece2;
+  opacity: 0.2;
+  transform: translateX(calc(100% - 46px));
+  transition:
+    transform 0.55s cubic-bezier(0.5, 0, 0.75, 0) calc((6 - var(--i)) * 45ms),
+    opacity 0.45s ease calc((6 - var(--i)) * 45ms);
+}
+
+.air-songs:hover .air-song,
+.air-songs:focus-within .air-song,
+.air-songs:focus .air-song {
+  opacity: 1;
+  transform: none;
+  transition:
+    transform 0.7s cubic-bezier(0.18, 1.1, 0.3, 1) calc(var(--i) * 55ms),
+    opacity 0.4s ease calc(var(--i) * 55ms);
+}
+
+.air-song.queued,
+.air-song.played { opacity: 0.12; }
+.air-songs:hover .air-song.played,
+.air-songs:focus-within .air-song.played { opacity: 0.6; }
+.air-songs:hover .air-song.queued,
+.air-songs:focus-within .air-song.queued { opacity: 0.45; }
+
+.air-song-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(243, 236, 226, 0.45);
+}
+
+.air-song.current .air-song-dot {
+  background: #f2a33a;
+  box-shadow: 0 0 10px rgba(242, 163, 58, 0.7);
+}
+
+.air-song-copy { min-width: 0; }
+
+.air-song-copy strong {
+  display: block;
+  overflow: hidden;
+  font: 500 13px/1.25 'Space Grotesk', sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.air-song-copy small {
+  display: block;
+  margin-top: 2px;
+  color: #9b958c;
+  font: 500 9px/1 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+}
+
+.air-song.current .air-song-copy small { color: #f2a33a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .air-song,
+  .air-songs:hover .air-song,
+  .air-songs:focus-within .air-song { transition: opacity 0.2s ease; }
+}
+
+/* The old h1 span rule added a margin after LVX, on top of the normal space. */
+.create-intro h1.create-title .create-question,
+.create-intro h1.create-title .page-title__lvx { margin-right: 0; }
+
+/* A visible name beside the small orange button; the tooltip explains the rest. */
+.gn-label {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ff8a3c;
+  font: 600 12px/1.2 'Space Grotesk', sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Keep the line for the description even when a station has none, so the tuning
+   band does not drop a line when moving between stations. */
+.air-quote { min-height: 1.5em; }
+
+/* The app shows the same wording as the browser page: a labelled Menu bar button,
+   not an icon on its own. */
+.native-tray-link { display: none !important; }

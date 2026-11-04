@@ -63,6 +63,12 @@ function openWindow(address) {
     trafficLightPosition: { x: 20, y: 25 },
     webPreferences: { preload: join(ROOT, 'src/electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
   });
+  // The layout is built for fixed sizes: dragging an edge only makes it brittle.
+  // Maximize and restore (even from the green button) still work; the app's own
+  // resizing between On air and Create goes through setBounds, which never fires this.
+  window.on('will-resize', (event) => {
+    if (!window.isMaximized() && !window.isFullScreen()) event.preventDefault();
+  });
   let view = 'radio';
   let radioBounds = window.getBounds();
   ipcMain.on('radio:view', (event, next) => {
