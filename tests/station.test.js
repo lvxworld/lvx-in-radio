@@ -1628,3 +1628,14 @@ test('every asset the interface loads is present', async () => {
   assert.ok(assets.size > 5);
   for (const path of assets) await readFile(new URL(path, uiDir));
 });
+
+test('Country and Folk are genres with their own sound and questions, and Reggae is gone', () => {
+  assert.ok(!GENRES.includes('Reggae'));
+  for (const name of ['Country', 'Folk']) {
+    assert.ok(GENRES.includes(name));
+    const sound = { ...config, mix: { [name]: 100 } };
+    assert.ok(buildStyle(sound).includes(name.toLowerCase()));
+    assert.equal(createDeck({ genres: [{ name, color: '#fff' }], signalsOnly: true }).next().kind, 'signal');
+    assert.deepEqual(decodeCode(encodeCode({ ...sound, scenario: undefined, seed: 7 })).mix, sound.mix);
+  }
+});

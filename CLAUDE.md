@@ -82,7 +82,7 @@ bundle id stable for existing users.
 menu. Minimize, close and the title-bar menu-bar symbol hide the main window while
 playback continues. Clicking the menu-bar icon opens the small player with station,
 frequency, title, Play/Stop and Open radio. Stop pauses playback in place; the next
-Play resumes it. Open restores the same bounds without maximizing. The panel uses
+Play resumes it. Open restores the same bounds without maximizing. The panel is `src/ui/assets/mini/panel.html` (with the on-air aurora, small, in the station colours), shared by the app and the browser test page, which frames it, so both always match. It uses
 a separate sandboxed preload; only its own sender can invoke its limited actions.
 Right-click offers Open, Play/Stop and Quit. Explicit Quit awaits both setup and
 engine shutdown. `npm run test:menu-bar` exercises the real native windows and IPC

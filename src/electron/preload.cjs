@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('LvxDesktop', {
     name: typeof state?.name === 'string' ? state.name.slice(0, 80) : '',
     title: typeof state?.title === 'string' ? state.title.slice(0, 160) : '',
     frequency: Number.isFinite(state?.frequency) ? state.frequency : null,
+    colors: Array.isArray(state?.colors) ? state.colors.filter(color => /^#[0-9a-f]{6}$/i.test(color)).slice(0, 3) : [],
   }),
   onTogglePlay: (callback) => {
     const listener = () => callback();

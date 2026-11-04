@@ -189,7 +189,7 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
     const path = join(uiDir, relative);
     const contentType = CONTENT_TYPES[extname(path)];
     if (!contentType || !path.startsWith(uiDir + sep)) throw new HttpError(404, 'Not found');
-    if (extname(path) === '.html') response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+    if (extname(path) === '.html') response.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors ${pathname === '/assets/mini/panel.html' ? "'self'" : "'none'"}`);
     await sendFile(request, response, path, contentType);
   };
 

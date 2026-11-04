@@ -24,6 +24,8 @@ const SHOCK_SPEED = 0.62;
 const SHOCK_LIFE_SEC = 2.4;
 const SHOCK_WIDTH = 0.09;
 const MAX_SHOCKS = 4;
+const TUNE_SPEED = 0.55;
+const TUNE_LIFE_SEC = 2.6;
 const SPECTRUM_SIZE = 64;
 
 const MOTE = 0;
@@ -41,7 +43,7 @@ void main() {
 const AURORA = `
 precision highp float;
 varying vec2 place;
-uniform float time, flow, aspect, bass, mid, high, shockRadius, shockPower;
+uniform float time, flow, aspect, bass, mid, high, shockRadius, shockPower, tuneRadius, tunePower;
 uniform sampler2D spectrum;
 uniform vec2 origin;
 uniform vec3 colorA, colorB, colorC;
@@ -112,6 +114,13 @@ void main() {
   float songs = exp(-pow((place.x - 0.88) / 0.13, 2.0) - pow((place.y - 0.72) / 0.22, 2.0));
   light *= (1.0 - text * 0.78) * (1.0 - songs * 0.6);
   light *= smoothstep(0.0, 0.22, place.y) * 0.55 + 0.45;
+  /* Finding a station: a drop of coloured water. A crest leaves the dial with a smaller echo behind it,
+     and the surface inside stays softly lit, so the wave never opens a hole at the centre. */
+  float ripple = exp(-pow((reach - tuneRadius) / 0.085, 2.0));
+  float echo = exp(-pow((reach - tuneRadius * 0.62) / 0.07, 2.0)) * smoothstep(0.12, 0.3, tuneRadius);
+  float surface = smoothstep(tuneRadius, 0.0, reach);
+  float bloom = exp(-reach * 2.6) * tunePower;
+  light += mix(colorA, vec3(1.0), 0.28) * (ripple * 0.14 + echo * 0.09 + surface * 0.045 + bloom * 0.08) * tunePower;
   gl_FragColor = vec4(light, 1.0);
 }`;
 
@@ -240,6 +249,7 @@ export class StationAura {
   #bands = { bass: 0, mid: 0, high: 0 };
   #bassFloor = 0;
   #shocks = [];
+  #tune = null;
   #lastShock = 0;
   #wind = 0;
   #lastFrame = 0;
@@ -268,6 +278,12 @@ export class StationAura {
   /** Colours are hex strings, most prominent first. They blend over from the last set. */
   setColors(colors) {
     this.#targetColors = [0, 1, 2].map((index) => rgbOf(colors[index % colors.length]));
+  }
+
+  /** A station was found: send one ring of light out from the dial. */
+  pulse() {
+    if (this.#reducedMotion || !this.#gl) return;
+    this.#tune = { age: 0 };
   }
 
   destroy() {
@@ -367,6 +383,10 @@ export class StationAura {
       shock.radius += SHOCK_SPEED * seconds;
     }
     this.#shocks = this.#shocks.filter((shock) => shock.age < SHOCK_LIFE_SEC);
+    if (this.#tune) {
+      this.#tune.age += seconds;
+      if (this.#tune.age > TUNE_LIFE_SEC) this.#tune = null;
+    }
     if (this.#targetColors) {
       this.#colors = this.#colors.map((color, index) =>
         color.map((value, channel) => value + (this.#targetColors[index][channel] - value) * COLOR_EASE),
@@ -465,6 +485,8 @@ export class StationAura {
     gl.uniform1f(uniforms.high, this.#bands.high);
     gl.uniform1f(uniforms.shockRadius, shock?.radius ?? 0);
     gl.uniform1f(uniforms.shockPower, shock ? shock.power * (1 - shock.age / SHOCK_LIFE_SEC) : 0);
+    gl.uniform1f(uniforms.tuneRadius, this.#tune ? 0.06 + this.#tune.age * TUNE_SPEED : 0);
+    gl.uniform1f(uniforms.tunePower, this.#tune ? (1 - this.#tune.age / TUNE_LIFE_SEC) ** 1.4 : 0);
     gl.uniform2f(uniforms.origin, center[0], center[1]);
     gl.uniform3fv(uniforms.colorA, this.#colors[0]);
     gl.uniform3fv(uniforms.colorB, this.#colors[1]);

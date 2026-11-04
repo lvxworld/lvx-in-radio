@@ -62,10 +62,15 @@ const GENRE_ROUNDS = {
     [['classical-romantic', 'Sweeping and romantic', '#d99691', 165, 'triangle', 1900, 0.5, 0.1], ['classical-minimal', 'Minimal and modern', '#9fd8e0', 330, 'sine', 2600, 2, 0.15]],
     [['classical-piano', 'One piano in the dark', '#c9c2e8', 220, 'sine', 1300, 0.5, 0], ['classical-film', 'A film score', '#ffd08a', 147, 'sawtooth', 1800, 1, 0.25]],
   ],
-  Reggae: [
-    [['reggae-roots', 'Sunlit roots', '#98ac7f', 147, 'triangle', 1200, 2, 0.3], ['reggae-dub', 'Deep dub echoes', '#6f9a8c', 73, 'sine', 700, 2, 0.45]],
-    [['reggae-beach', 'Beach at noon', '#ffdf7a', 220, 'square', 2000, 2, 0.4], ['reggae-night', 'Sound system night', '#c76b60', 98, 'square', 900, 2, 0.6]],
-    [['reggae-lovers', 'Lovers rock', '#d99691', 196, 'triangle', 1500, 1, 0.15], ['reggae-modern', 'Modern and electronic', '#9fd8e0', 165, 'sawtooth', 2200, 4, 0.55]],
+  Country: [
+    [['country-honky', 'Honky-tonk Saturday', '#d2975f', 196, 'sawtooth', 2200, 3, 0.5], ['country-ballad', 'Front porch ballad', '#c9b08a', 165, 'triangle', 1200, 1, 0.1]],
+    [['country-outlaw', 'Outlaw and dusty', '#c76b60', 147, 'sawtooth', 1400, 2, 0.7], ['country-pop', 'Radio-ready country pop', '#ffd08a', 262, 'triangle', 3000, 3, 0.3]],
+    [['country-steel', 'Weeping steel guitar', '#9fd8e0', 220, 'sine', 1800, 1, 0.2], ['country-road', 'Open dirt road', '#e5bd83', 175, 'triangle', 2000, 2, 0.4]],
+  ],
+  Folk: [
+    [['folk-fingerpick', 'Fingerpicked and close', '#b9a77f', 196, 'triangle', 1500, 1, 0.2], ['folk-campfire', 'Campfire singalong', '#e5bd83', 262, 'triangle', 2400, 2, 0.4]],
+    [['folk-indie', 'Hushed indie folk', '#9fd8e0', 220, 'sine', 1700, 0.75, 0.1], ['folk-celtic', 'Celtic reels', '#98ac7f', 294, 'sawtooth', 2600, 4, 0.5]],
+    [['folk-dark', 'Dark old ballads', '#7f83ad', 147, 'triangle', 900, 0.75, 0.3], ['folk-sunny', 'Sunlit pastoral', '#ffdf7a', 330, 'triangle', 2800, 1.5, 0.15]],
   ],
   'Lo-fi': [
     [['lofi-rain', 'Rain on the window', '#8fa8e8', 165, 'triangle', 700, 0.5, 0.2], ['lofi-cafe', 'A slow morning café', '#d6a67a', 220, 'triangle', 1100, 1, 0.3]],
@@ -90,7 +95,8 @@ const GENRE_SOUNDS = {
   'R&B': { root: 196, wave: 'triangle', cutoff: 1300, pulse: 1, jag: 0.1 },
   Jazz: { root: 233, wave: 'triangle', cutoff: 1700, pulse: 1.5, jag: 0.2 },
   Classical: { root: 294, wave: 'sine', cutoff: 2200, pulse: 0.25, jag: 0 },
-  Reggae: { root: 147, wave: 'square', cutoff: 1000, pulse: 2, jag: 0.4 },
+  Country: { root: 196, wave: 'sawtooth', cutoff: 2000, pulse: 2, jag: 0.45 },
+  Folk: { root: 220, wave: 'triangle', cutoff: 1600, pulse: 1.5, jag: 0.2 },
   'Lo-fi': { root: 175, wave: 'triangle', cutoff: 650, pulse: 0.75, jag: 0.35 },
   Ambient: { root: 131, wave: 'sine', cutoff: 1400, pulse: 0.15, jag: 0 },
 };

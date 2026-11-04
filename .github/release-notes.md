@@ -1,4 +1,4 @@
-LVX in Radio, a local generative radio for Apple Silicon Macs. This preview adds LVX Live.
+LVX in Radio, a local generative radio for Apple Silicon Macs. This preview refreshes the interface: a new player bar, a tuning ripple, a livelier mini player in the menu bar, and Country and Folk as new sounds (Reggae is retired).
 
 1. Download the DMG and drag **LVX in Radio** into Applications.
 2. Open it. macOS blocks it the first time because the app is not notarized: go to **System Settings → Privacy & Security → Open Anyway**, then confirm.

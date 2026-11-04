@@ -4,13 +4,16 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'">
   <title>LVX mini player</title>
-  <link rel="stylesheet" href="menu-bar.css">
-  <script src="menu-bar-player.js" defer></script>
+  <link rel="stylesheet" href="panel.css">
+  <script src="panel-bridge.js"></script>
+  <script src="panel.js" defer></script>
+  <script type="module" src="panel-aura.js"></script>
 </head>
 <body>
   <main class="mini-radio">
+    <canvas id="aura" aria-hidden="true"></canvas>
     <header>
-      <span class="brand"><img src="../ui/assets/logo-symbol.png" alt=""><span>LVX<small>IN RADIO</small></span></span>
+      <span class="brand"><img src="../logo-symbol.png" alt=""><span>LVX<small>IN RADIO</small></span></span>
       <span class="status" role="status"><i></i><span id="status">READY</span></span>
     </header>
     <section class="station" aria-label="Current station">

@@ -6,7 +6,7 @@ export function createMenuBar({ root, getWindow, quit }) {
   const icon = nativeImage.createFromPath(join(root, 'src/ui/assets/logo-symbol.png')).resize({ width: 22, height: 20 });
   icon.setTemplateImage(true);
   const tray = new Tray(icon);
-  let playback = { playing: false, available: false, name: 'LVX in Radio', title: '', frequency: null };
+  let playback = { playing: false, available: false, name: 'LVX in Radio', title: '', frequency: null, colors: [] };
   let panel = null;
   const show = () => {
     panel?.hide();
@@ -40,7 +40,7 @@ export function createMenuBar({ root, getWindow, quit }) {
       panel.on('blur', () => panel?.hide());
       panel.on('closed', () => { panel = null; });
       // State is also requested by the preload, so the first frame is current.
-      panel.loadFile(join(root, 'src/electron/menu-bar.html'));
+      panel.loadFile(join(root, 'src/ui/assets/mini/panel.html'));
     }
     const anchor = tray.getBounds();
     const area = screen.getDisplayMatching(anchor).workArea;
@@ -81,6 +81,7 @@ export function createMenuBar({ root, getWindow, quit }) {
         name: typeof state.name === 'string' ? state.name.slice(0, 80) : '',
         title: typeof state.title === 'string' ? state.title.slice(0, 160) : '',
         frequency: Number.isFinite(state.frequency) && state.frequency >= 87.8 && state.frequency <= 107.8 ? state.frequency : null,
+        colors: Array.isArray(state.colors) ? state.colors.filter(color => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color)).slice(0, 3) : [],
       };
       tray.setToolTip(`LVX in Radio · ${playback.playing ? 'On air' : 'Stopped'}${playback.name ? ' · ' + playback.name : ''}`);
       publish();
