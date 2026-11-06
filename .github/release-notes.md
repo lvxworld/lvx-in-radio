@@ -1,4 +1,4 @@
-LVX in Radio v0.1.7 adds **LVX News** (new since v0.1.5): an hourly news bulletin, read aloud on your Mac. It also fixes **Stop generating**, which could interrupt a bulletin while it was being made.
+LVX in Radio v0.1.8 adds **LVX News** (new since v0.1.5): an hourly news bulletin, read aloud on your Mac. It also fixes **Stop generating**, which could interrupt a bulletin while it was being made.
 
 - A small **NEWS** chip beside ON AIR turns it on. Every hour the app makes a short bulletin of up to five stories, read by Qwen3-TTS (voice Ryan) over a quiet music bed that rises only between stories. Production starts about ten minutes before the hour and never interrupts a song that is composing.
 - When a bulletin is ready, a "The news is ready" card asks **Listen** or **Later**. **Listen to the last bulletin** replays the latest one before the next replaces it, and **Make one now** reads the feeds again and makes a new one. The News marker on the dial plays it too.
