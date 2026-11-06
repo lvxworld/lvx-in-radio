@@ -14,10 +14,10 @@
     <canvas id="aura" aria-hidden="true"></canvas>
     <header>
       <span class="brand"><img src="../logo-symbol.png" alt=""><span>LVX<small>IN RADIO</small></span></span>
-      <span class="status" role="status"><i></i><span id="status">READY</span></span>
+      <div class="header-actions"><span class="status" role="status"><i></i><span id="status">READY</span></span><button id="tray" type="button" aria-label="Move to menu bar" title="Keep listening in the menu bar" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5h14M12 19V9m-4 4 4-4 4 4"></path></svg></button></div>
     </header>
     <section class="station" aria-label="Current station">
-      <div class="frequency"><span id="frequency">—</span><small>FM</small></div>
+      <div class="station-dial"><canvas id="dial" aria-hidden="true"></canvas><div class="frequency"><span id="frequency">—</span><small>FM</small></div></div>
       <h1 id="station">LVX in Radio</h1>
       <p id="track">Your radio, a little closer.</p>
     </section>

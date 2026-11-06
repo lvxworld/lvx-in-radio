@@ -164,7 +164,7 @@ const DANCE_GENRES = ['EDM', 'Techno'];
 const SOUND_SLOTS = 6;
 const DOMINANT_SHARE = 0.6;
 const MAJOR_SHARE = 0.25;
-const MAX_MOOD_CHARS = 80;
+const MAX_MOOD_CHARS = 1000;
 const MIN_BPM = 30;
 const MAX_BPM = 300;
 

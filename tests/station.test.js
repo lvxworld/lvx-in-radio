@@ -1304,6 +1304,15 @@ test('words the listener activates join the scenario in the prompt', () => {
   assert.ok(!buildStyle({ ...config, scenario: 'Have fun', mood: '' }).includes('rain'));
 });
 
+test('a long description reaches the engine intact up to 1000 characters', async () => {
+  const mood = 'Warm piano, distant rain and a slowly evolving bass. '.repeat(20).slice(0, 990) + ' FINAL END';
+  assert.equal(mood.length, 1000);
+  await station.tune({ ...config, mood });
+  assert.ok(engine.requests[0].options.style.includes(mood), 'the engine must receive the words after the old 80-character limit');
+  assert.equal(decodeCode(encodeCode({ ...config, mood, seed: 7 })).mood, mood);
+  assert.ok(!buildStyle({ ...config, mood: mood + ' EXTRA TEXT' }).includes('EXTRA TEXT'));
+});
+
 test('different words on the same scenario make a different station', async () => {
   const sound = { ...config, scenario: 'Relax', mood: '' };
   const plain = await stations.open(sound, { name: 'Plain' });

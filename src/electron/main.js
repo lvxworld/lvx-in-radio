@@ -42,8 +42,14 @@ function openWindow(address) {
   ipcMain.on('radio:hide', (event) => {
     if (window && event.sender === window.webContents) window.hide();
   });
+  ipcMain.on('radio:mini', (event) => {
+    if (window && event.sender === window.webContents) menuBar?.showCompact();
+  });
   ipcMain.on('radio:playback-state', (event, state) => {
     if (window && event.sender === window.webContents && state && typeof state === 'object') menuBar?.update(state);
+  });
+  ipcMain.on('radio:visuals', (event, visuals) => {
+    if (window && event.sender === window.webContents) menuBar?.updateVisuals(visuals);
   });
   ipcMain.handle('radio:choose-model', async (event, accepted) => {
     if (!window || event.sender !== window.webContents) throw new Error('Unknown window');

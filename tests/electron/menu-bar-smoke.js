@@ -39,6 +39,7 @@ async function run() {
       let playing = true;
       function publish() { window.LvxDesktop.updatePlayback({ playing, available:true, name:'Test station', title:'Test song', frequency:102.2 }); }
       window.LvxDesktop.onTogglePlay(() => { playing = !playing; publish(); });
+      window.LvxDesktop.onVisualsActive(active => { window.visualsActive = active; });
       publish();
     </script>`));
     const bounds = main.getBounds();
@@ -49,6 +50,26 @@ async function run() {
     await waitFor(async () => !panel.webContents.isLoading());
     await waitFor(async () => await read("document.querySelector('#status').textContent") === 'ON AIR');
     assert.equal(await read("document.querySelector('#track').textContent"), 'Test song');
+    await waitFor(async () => await main.webContents.executeJavaScript('window.visualsActive===true'));
+    await waitFor(async () => await read("document.querySelector('#dial').width>0"));
+    const alignment = await read(`(()=>{
+      const selectors=['.station-dial','.frequency','#station','#track','#play'];
+      const centers=selectors.map(selector=>{const r=document.querySelector(selector).getBoundingClientRect();return r.left+r.width/2});
+      return {centered:Math.max(...centers)-Math.min(...centers)<1,fits:document.querySelector('#open').getBoundingClientRect().bottom<=innerHeight-8};
+    })()`);
+    assert.equal(alignment.centered, true, 'the dial, frequency, station, song and play button share a center');
+    assert.equal(alignment.fits, true, 'all controls fit below the semicircle');
+    await read('window.testVisuals=null;window.LvxMini.onVisuals(visuals=>{window.testVisuals=visuals});true');
+    menuBar.updateVisuals({ levels: [Infinity,-1,2,...Array(57).fill(.5)], time:-1 });
+    await waitFor(async () => await read('!!window.testVisuals'));
+    assert.deepEqual(await read('window.testVisuals.levels.slice(0,3)'), [0,0,1]);
+    assert.equal(await read('window.testVisuals.time'), 0);
+    menuBar.updateVisuals({ levels: Array(60).fill(0), time:0 });
+    await delay(100);
+    const quietDial = await read("document.querySelector('#dial').toDataURL()");
+    menuBar.updateVisuals({ levels: Array(60).fill(1), time:0 });
+    await delay(100);
+    assert.notEqual(await read("document.querySelector('#dial').toDataURL()"),quietDial,'the EQ responds to the received audio spectrum');
     assert.equal(main.isVisible(), false, 'opening mini player must keep the radio hidden');
     await read("document.querySelector('#play').click()");
     await waitFor(async () => await read("document.querySelector('#status').textContent") === 'STOPPED');
@@ -63,8 +84,31 @@ async function run() {
     assert.equal(main.isMaximized(), false, 'Open radio must not maximize');
     assert.deepEqual(main.getBounds(), bounds, 'Open radio must keep the previous window bounds');
     assert.equal(panel.isVisible(), false);
+    await waitFor(async () => await main.webContents.executeJavaScript('window.visualsActive===false'));
+    menuBar.showCompact();
+    await waitFor(async () => await read("document.body.classList.contains('is-compact')&&!document.querySelector('#tray').hidden"));
+    assert.equal(main.isVisible(), false, 'compact mode hides the normal window');
+    assert.equal(BrowserWindow.getAllWindows().length, 2, 'compact mode reuses the menu-bar panel');
+    panel.emit('blur');
+    assert.equal(panel.isVisible(), true, 'compact mode stays visible when another app gains focus');
+    assert.equal(await read("document.querySelector('#status').textContent"), 'ON AIR', 'opening compact mode preserves playback');
+    await read("document.querySelector('#play').click()");
+    await waitFor(async () => await read("document.querySelector('#status').textContent") === 'STOPPED');
+    await read("document.querySelector('#play').click()");
+    await waitFor(async () => await read("document.querySelector('#status').textContent") === 'ON AIR');
+    const compactBounds = panel.getBounds();
+    await read("document.querySelector('#tray').click()");
+    await waitFor(() => !panel.isVisible());
+    assert.equal(main.isVisible(), false, 'Move to menu bar keeps the normal window hidden');
+    menuBar.showCompact();
+    assert.deepEqual(panel.getBounds(), compactBounds, 'compact mode remembers its position');
+    await read("document.querySelector('#open').click()");
+    await waitFor(() => main.isVisible());
+    assert.deepEqual(main.getBounds(), bounds, 'compact mode restores the same normal window');
+    assert.equal(panel.isVisible(), false);
     nativeTray.emit('click');
     assert.equal(BrowserWindow.getAllWindows().length, 2, 'reuse the existing mini player');
+    await waitFor(async () => await read("!document.body.classList.contains('is-compact')&&document.querySelector('#tray').hidden"));
     await read("document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape'}))");
     await waitFor(() => !panel.isVisible());
     menuBar.update({ playing: false, available: false, name: 'Empty station' });
@@ -81,7 +125,7 @@ async function run() {
     menuBar.destroy(); menuBar = null;
     assert.equal(panel.isDestroyed(), true);
     assert.equal(ipcMain.listenerCount('radio:menu-action'), 0);
-    console.log('PASS native mini player: initial state, Play/Stop, hidden radio, same window bounds, IPC ownership, unavailable playback, Escape, cleanup.');
+    console.log('PASS native mini player: centered semicircle and controls, real spectrum response, validated levels, visible-only animation, compact mode, blur, Play/Stop, menu bar, restoration, IPC ownership, cleanup.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

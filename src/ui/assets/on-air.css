@@ -1037,10 +1037,8 @@
   transition: opacity 0.18s, transform 0.18s;
 }
 
-.songs-power:hover:not(:has(.generate-now:hover)) .songs-power-tip:not(.gn-tip),
-.songs-power:has(.songs-power-dial button:focus-visible) .songs-power-tip:not(.gn-tip),
-.songs-power:has(.generate-now:hover) .gn-tip,
-.songs-power:has(.generate-now:focus-visible) .gn-tip {
+.songs-power:hover .songs-power-tip,
+.songs-power:has(.songs-power-dial button:focus-visible) .songs-power-tip {
   opacity: 1;
   transform: none;
 }
@@ -1599,23 +1597,9 @@ html[data-shell='app'] .setup-window { height:100vh!important; min-height:0!impo
 .air-library { color: #b98a45; font: 500 9px/1 'JetBrains Mono', monospace; letter-spacing: .16em; }
 .air-tags { color: #8a847b; font: 400 8.5px/1 'JetBrains Mono', monospace; letter-spacing: .1em; }
 
-/* Generate now: the power dial again, half the size, lit orange, at 12 o'clock above it. */
 .songs-power-clock { position: relative; flex: none; }
-.songs-power-dial.gn-dial { position: absolute; left: 17px; top: -38px; width: 34px; height: 34px; }
-.songs-power-dial.gn-dial canvas { width: 34px; height: 34px; }
-.songs-power-dial.gn-dial button.generate-now {
-  width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0; color: #121110;
-  background: radial-gradient(circle at 50% 40%,#fff1d6 0%,#ff8a3c 60%);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.45), inset 0 -1px 0 rgba(255,255,255,.3), 0 0 0 1.5px #121110, 0 0 0 2.3px #ff8a3c;
-}
-.songs-power-dial.gn-dial button.generate-now svg { width: 9px; height: 9px; }
-.songs-power-dial.gn-dial button.generate-now:hover { background: radial-gradient(circle at 50% 40%,#fff8ea 0%,#ffa05a 60%); box-shadow: inset 0 1px 3px rgba(0,0,0,.4), 0 0 0 1.5px #121110, 0 0 0 2.3px #ffa05a, 0 0 8px rgba(255,138,60,.6); }
-.songs-power-dial.gn-dial button.generate-now:focus-visible { outline: 1px solid rgba(255,138,60,.7); outline-offset: 4px; }
-.songs-power-tip.gn-tip strong { display: block; margin-bottom: 4px; color: #ff6a3d; font: 600 10px/1.2 'JetBrains Mono', monospace; letter-spacing: .16em; text-transform: uppercase; }
-.songs-power-tip.gn-tip { bottom: calc(100% + 40px); }
-.songs-power-dial.gn-dial button.generate-now svg { stroke-width: 2; }
-/* The power tooltip opens above and to the right, clear of the Generate now dial. */
-.songs-power-tip:not(.gn-tip) { left: 84px; }
+/* Keep the tooltip above and to the right of the power dial. */
+.songs-power-tip { left: 84px; }
 
 /* Refresh stations: the same outlined pill as New station and Share this sound, with the orbit mark in amber. */
 .broadcast-toolbar .live-refresh { width: auto; height: auto; gap: 7px; padding: 6px 13px 6px 9px; border: 1px solid rgba(255,255,255,.16); background: transparent; box-shadow: none; color: #f3ece2; }
@@ -1745,18 +1729,6 @@ html[data-shell='app'] .setup-window { height:100vh!important; min-height:0!impo
 .create-intro h1.create-title .create-question,
 .create-intro h1.create-title .page-title__lvx { margin-right: 0; }
 
-/* A visible name beside the small orange button; the tooltip explains the rest. */
-.gn-label {
-  position: absolute;
-  left: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-  color: #ff8a3c;
-  font: 600 12px/1.2 'Space Grotesk', sans-serif;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
 /* Keep the line for the description even when a station has none, so the tuning
    band does not drop a line when moving between stations. */
 .air-quote { min-height: 1.5em; }
@@ -1764,3 +1736,18 @@ html[data-shell='app'] .setup-window { height:100vh!important; min-height:0!impo
 /* The app shows the same wording as the browser page: a labelled Menu bar button,
    not an icon on its own. */
 .native-tray-link { display: none !important; }
+
+/* Keep the queue action beside the title, above the separate status line. */
+.air-song-copy { flex:1; }
+.air-song-title { display:flex; align-items:center; gap:9px; }
+.air-song-title strong { min-width:0; flex:1; }
+.air-song-regenerate { flex:none; border:0; padding:0; background:none; color:#f2a33a; font:500 9px/1 'Space Grotesk',sans-serif; letter-spacing:0; cursor:pointer; white-space:nowrap; }
+.air-song-regenerate:hover { color:#ffe0a6; text-decoration:underline; }
+.air-song-regenerate:focus-visible { outline:1px solid #f2a33a; outline-offset:3px; }
+
+.mini-player-open { display:grid; place-items:center; flex:none; width:30px; height:30px; padding:5px; border:1px solid #f3ece226; border-radius:8px; background:transparent; color:#a99d8b; cursor:pointer; }
+.air-player .transport-right { flex-direction:row; align-items:center; justify-content:flex-end; gap:12px; }
+.mini-player-open svg { width:18px; height:18px; stroke:currentColor; stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; }
+.mini-player-open:hover { border-color:#f2a33a66; color:#f2a33a; background:#f2a33a09; }
+.mini-player-open:focus-visible { outline:2px solid #f2a33a; outline-offset:3px; }
+.tray-frame.compact-frame { top:50%; left:50%; right:auto; transform:translate(-50%,-50%); animation:none; }

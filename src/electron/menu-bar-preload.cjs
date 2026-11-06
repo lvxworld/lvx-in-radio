@@ -5,6 +5,12 @@ contextBridge.exposeInMainWorld('LvxMini', {
   togglePlay: () => ipcRenderer.send('radio:menu-action', 'toggle-play'),
   open: () => ipcRenderer.send('radio:menu-action', 'open'),
   hide: () => ipcRenderer.send('radio:menu-action', 'hide'),
+  toTray: () => ipcRenderer.send('radio:menu-action', 'tray'),
+  onVisuals: (callback) => {
+    const listener = (_event, visuals) => callback(visuals);
+    ipcRenderer.on('radio:menu-visuals', listener);
+    return () => ipcRenderer.removeListener('radio:menu-visuals', listener);
+  },
   onState: (callback) => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('radio:menu-state', listener);

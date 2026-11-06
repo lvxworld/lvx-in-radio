@@ -1,10 +1,13 @@
 import { StationAura } from '../station-aura.js';
+import { drawStationDial } from '../station-dial.js';
 
-// The same sky as the on-air screen, small. The sound plays in the main window, so
-// the panel moves its own gentle levels while the radio is on air and rests when it is not.
+// Playback stays in the main renderer; its real levels also drive the small face.
 const canvas = document.getElementById('aura');
+const dial = document.getElementById('dial');
 const levels = new Float32Array(60);
-let playing = false;
+let colors = ['#f2a33a'];
+let time = 0;
+let receivedAt = performance.now();
 let aura = null;
 
 try {
@@ -17,19 +20,21 @@ try {
 }
 
 window.LvxMini.onState(state => {
-  playing = state.playing === true;
-  if (aura && state.colors?.length) aura.setColors(state.colors);
+  if (state.colors?.length) {
+    colors = state.colors;
+    aura?.setColors(colors);
+  }
+});
+window.LvxMini.onVisuals(visuals => {
+  if (!Array.isArray(visuals?.levels) || visuals.levels.length !== levels.length) return;
+  levels.set(visuals.levels);
+  time = visuals.time;
+  receivedAt = performance.now();
 });
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 function move(now) {
-  const t = reduced.matches ? 0 : now / 1000;
-  for (let index = 0; index < levels.length; index += 1) {
-    const target = playing
-      ? 0.35 + 0.3 * Math.sin(t * 3 + index * 0.7) * Math.sin(t * 1.3 + index * 0.21)
-      : 0.08 + 0.05 * Math.sin(t * 1.2 + index * 0.4);
-    levels[index] += (target - levels[index]) * 0.22;
-  }
+  drawStationDial(dial, { levels, colors, time: reduced.matches ? 0 : time + (now - receivedAt) / 1000 });
   requestAnimationFrame(move);
 }
 requestAnimationFrame(move);

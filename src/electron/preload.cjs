@@ -2,13 +2,26 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('LvxDesktop', {
   hideToTray: () => ipcRenderer.send('radio:hide'),
+  openMiniPlayer: () => ipcRenderer.send('radio:mini'),
   updatePlayback: (state) => ipcRenderer.send('radio:playback-state', {
     playing: state?.playing === true, available: state?.available === true,
     name: typeof state?.name === 'string' ? state.name.slice(0, 80) : '',
     title: typeof state?.title === 'string' ? state.title.slice(0, 160) : '',
     frequency: Number.isFinite(state?.frequency) ? state.frequency : null,
-    colors: Array.isArray(state?.colors) ? state.colors.filter(color => /^#[0-9a-f]{6}$/i.test(color)).slice(0, 3) : [],
+    colors: Array.isArray(state?.colors) ? state.colors.filter(color => /^#[0-9a-f]{6}$/i.test(color)).slice(0, 6) : [],
   }),
+  updateVisuals: (visuals) => {
+    if (!Array.isArray(visuals?.levels) || visuals.levels.length !== 60) return;
+    ipcRenderer.send('radio:visuals', {
+      levels: visuals.levels.map(level => Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0),
+      time: Number.isFinite(visuals.time) ? Math.max(0, visuals.time) : 0,
+    });
+  },
+  onVisualsActive: (callback) => {
+    const listener = (_event, active) => callback(active === true);
+    ipcRenderer.on('radio:visuals-active', listener);
+    return () => ipcRenderer.removeListener('radio:visuals-active', listener);
+  },
   onTogglePlay: (callback) => {
     const listener = () => callback();
     ipcRenderer.on('radio:toggle-play', listener);

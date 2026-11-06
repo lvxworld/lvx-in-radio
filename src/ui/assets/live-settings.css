@@ -68,3 +68,20 @@
   .live-refresh:hover:not(:disabled) .live-refresh-orbit { transform: none; }
 }
 .window-titlebar .lvx-settings-open{right:112px}
+
+.lvx-settings-menu { display:grid; gap:12px; margin:26px 0 8px; }
+.lvx-settings-option { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; padding:22px 18px; border:1px solid #58432d; border-radius:9px; background:linear-gradient(150deg,#2b2219,#1c1712); color:#f3ece2; text-align:left; font-size:16px; cursor:pointer; }
+.lvx-settings-option:hover { border-color:#c68a43; background:#30251a; }
+.lvx-settings-option>span:last-child { color:#f2a33a; font-size:24px; line-height:1; }
+.lvx-settings-back { border:0; padding:0; margin-top:20px; background:none; color:#c3ad90; font-size:11px; cursor:pointer; }
+.lvx-settings-back:hover { color:#f2a33a; }
+.lvx-settings-live,.lvx-settings-music { margin-top:23px; }
+.lvx-settings-music .lvx-model-status { font:500 9px 'JetBrains Mono',monospace; color:#e4b16d; letter-spacing:.1em; }
+.lvx-settings-music .lvx-model-intro { margin:12px 0 18px; }
+.lvx-settings-music .lvx-model-detail { font-size:11px; margin:12px 0 18px; }
+.lvx-settings-music .setup-license { margin:18px 0; }
+.lvx-settings-music .setup-license input { width:auto; padding:0; margin-top:3px; }
+.lvx-settings-music .setup-license span { flex:1; }
+.lvx-settings-music .lvx-model-error { color:#f1af89; margin:12px 0; }
+.lvx-model-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.lvx-settings-music .setup-playing { margin-top:20px; font-size:9px; }

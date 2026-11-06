@@ -78,6 +78,14 @@ bundle id stable for existing users.
 
 ## Native menu bar
 
+The Mini player button beside volume opens the same menu-bar panel as a persistent,
+draggable compact player. It stays visible on blur; its Menu bar button hides it,
+and Open radio restores the original main window and bounds. Audio remains in the
+main renderer throughout. The browser preview uses the shared panel in an iframe.
+The semicircle and EQ use `assets/station-dial.js` in every view. While a small
+panel is visible, the main renderer forwards its 60 audio levels and animation
+time at up to 30 Hz; hiding the panel stops that forwarding.
+
 `src/electron/menu-bar.js` owns the template icon, mini player and native context
 menu. Minimize, close and the title-bar menu-bar symbol hide the main window while
 playback continues. Clicking the menu-bar icon opens the small player with station,

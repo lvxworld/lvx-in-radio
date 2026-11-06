@@ -2,6 +2,8 @@ const byId = id => document.getElementById(id);
 const play = byId('play');
 
 window.LvxMini.onState(state => {
+  document.body.classList.toggle('is-compact', state.compact === true);
+  byId('tray').hidden = state.compact !== true;
   document.body.classList.toggle('is-playing', state.playing);
   byId('status').textContent = state.playing ? 'ON AIR' : state.available ? 'STOPPED' : 'READY';
   byId('frequency').textContent = state.frequency === null ? '—' : state.frequency.toFixed(1);
@@ -19,6 +21,7 @@ window.LvxMini.onState(state => {
 
 play.addEventListener('click', () => window.LvxMini.togglePlay());
 byId('open').addEventListener('click', () => window.LvxMini.open());
+byId('tray').addEventListener('click', () => window.LvxMini.toTray());
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') window.LvxMini.hide();
 });

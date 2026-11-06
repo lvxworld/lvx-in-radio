@@ -25,6 +25,8 @@ Use the existing `node:test` runner with fake engines and small HTTP fixtures. U
 
 Use concise, imperative commit subjects such as `Add station playback controls`. Keep commits focused on one change. Push only when the owner asks.
 
+Before building a DMG, always prepare and share a working HTML preview of the proposed interface changes with the owner.
+
 Pull requests should explain the purpose, summarize behavior changes, link relevant issues, and report validation performed. Include screenshots for visible interface changes and identify any setup or configuration changes.
 
 ## Security & Configuration

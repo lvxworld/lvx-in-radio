@@ -14,6 +14,7 @@ If the Homebrew `node` is broken, use Node 24 directly:
 ```sh
 npm ci
 npm test              # fake engine, no GPU or model needed
+npm run test:live-ui  # Electron renderer: settings, Describe, Live playback; no model needed
 npm start             # browser UI at http://127.0.0.1:8787
 npm run fetch-engine  # pinned audio.cpp release, checksum verified
 npm run app           # Electron from source

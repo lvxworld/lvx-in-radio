@@ -1,4 +1,11 @@
-LVX in Radio, a local generative radio for Apple Silicon Macs. This preview refines the interface: a fixed window size, a song list tucked into the right edge, a clearer Generate now button and Menu bar button, and a steadier tuning band.
+LVX in Radio v0.1.5 adds a persistent mini player and simplifies station setup.
+
+- Open the mini player beside volume, keep it visible while using other apps, move it to the menu bar, or restore the full radio without interrupting playback.
+- The mini player and menu-bar panel now share the main radio's centered semicircle and EQ, driven by the same audio levels.
+- Settings opens with two choices: **LVX Live stations** and **Music setup**, both inside the same popup.
+- **Describe it in words** accepts up to 1,000 characters and passes them to the music engine.
+- **Regenerate now** sits beside the queued song's title. LVX stations hide the generation switch.
+- Scenario selection and Sound DNA keep their sound cues without the confetti effect.
 
 1. Download the DMG and drag **LVX in Radio** into Applications.
 2. Open it. macOS blocks it the first time because the app is not notarized: go to **System Settings → Privacy & Security → Open Anyway**, then confirm.
