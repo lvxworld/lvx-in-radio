@@ -2,7 +2,7 @@
 
 <h3 align="center">A radio station that composes itself, on your Mac.</h3>
 
-https://github.com/user-attachments/assets/0f206c6e-dbc0-431f-83f9-1f97d99b9a27
+https://github.com/user-attachments/assets/af38eb5f-8d7f-4f2f-8837-c0e332d67843
 
 <p align="center"><a href="https://github.com/lvxworld/lvx-in-radio/releases/latest"><b>Download for Mac</b></a></p>
 
