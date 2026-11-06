@@ -1,0 +1,12 @@
+LVX in Radio
+Copyright 2026 LVX
+
+This product is licensed under the Apache License, Version 2.0. See LICENSE.
+
+It builds on, and the app bundles or downloads, the following work of others, each under its own terms:
+
+- Electron (MIT) and the Chromium and Node.js components it contains.
+- audio.cpp (Apache-2.0), bundled in the app as the audiocpp_server engine.
+- fast-xml-parser (MIT), used to read news feeds.
+- The YuE2 music model weights (CC BY-NC 4.0 with an additional creator permission), downloaded by the user inside the app.
+- The Qwen3-TTS voice model weights (Apache-2.0), downloaded by the user inside the app for LVX News.

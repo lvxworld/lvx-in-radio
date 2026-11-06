@@ -47,6 +47,10 @@ LVX in Radio is powered by [YuE2](https://github.com/multimodal-art-projection/Y
 
 The model isn't part of the download: you accept its terms inside the app before getting it. In full, the YuE2 weights are [CC BY-NC 4.0 with an additional creator permission](https://github.com/multimodal-art-projection/YuE/blob/main/MODEL_LICENSE), and audio.cpp is Apache 2.0. This is a summary, not legal advice: the linked license is what counts.
 
+## License
+
+The source code of LVX in Radio is released under the [Apache License 2.0](LICENSE). The LVX name and logo, and the songs bundled in `lux/`, are not part of that license. The YuE2 and Qwen3-TTS models are not part of the download and keep their own licenses. Third-party notices are in [NOTICE](NOTICE).
+
 ---
 
 <p align="center">Want to build it yourself or help out? See <a href="DEVELOPMENT.md">DEVELOPMENT.md</a>.</p>

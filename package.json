@@ -24,6 +24,7 @@
   "main": "src/electron/main.js",
   "description": "A local generative radio for Apple Silicon Macs",
   "author": "LVX",
+  "license": "Apache-2.0",
   "productName": "LVX in Radio",
   "repository": {
     "type": "git",
