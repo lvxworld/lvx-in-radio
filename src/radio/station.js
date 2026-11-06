@@ -256,7 +256,8 @@ export class RadioStation extends EventEmitter {
     if (!enabled) {
       session.tracks = session.tracks.filter((track) => track.status === 'ready');
       if (this.#jobFor(session)) await this.#abortJob();
-      if (!this.#job) await this.#engine.stop();
+      // A news bulletin may be using the engine: leave it, the idle unload stops it afterwards.
+      if (!this.#job && this.#holds === 0) await this.#engine.stop();
     } else {
       session.error = null;
       session.failures = 0;

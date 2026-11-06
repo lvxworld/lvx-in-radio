@@ -141,3 +141,19 @@ test('isPlaying follows what the listener is doing', async (t) => {
   await station.setPlayback({ trackId: track.id, positionSec: 1, playing: false });
   assert.equal(station.isPlaying(), false);
 });
+
+test('Stop generating does not stop an engine that a news bulletin is using', async (t) => {
+  const { station, engine } = await radio(t);
+  await station.tune(config);
+  await delay(20);
+  await station.setGenerationEnabled(false);
+  const stopsBefore = engine.stops;
+  assert.ok(stopsBefore >= 1, 'with nothing using it the engine is stopped');
+  const release = station.tryHold();
+  assert.ok(release, 'no song is composing, so the news can take the engine');
+  await station.setGenerationEnabled(true); // no song starts while the engine is held
+  assert.equal(engine.requests.length, 1, 'nothing new was started under the hold');
+  await station.setGenerationEnabled(false);
+  assert.equal(engine.stops, stopsBefore, 'the voice take is left alone');
+  release();
+});
