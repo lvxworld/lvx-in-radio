@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LVX News proof</title>
+<style>
+  :root { --bg: #111418; --fg: #e8e6e1; --dim: #9a978f; --line: #2a2f36; --accent: #f1b04c; --ok: #7fd18b; --bad: #ef7d6f; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f6f3ec; --fg: #1b1d20; --dim: #6c6a63; --line: #d9d4c8; --accent: #b36b00; --ok: #2f7d3b; --bad: #b3372b; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 -apple-system, system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .dim { color: var(--dim); }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .row > span:first-child { flex: 1; }
+  button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  #status.error { color: var(--bad); }
+  #status.ready { color: var(--ok); }
+  ol { padding: 0; list-style: none; margin: 8px 0; }
+  li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  li.now { color: var(--accent); }
+  audio { width: 100%; margin: 12px 0; }
+  #popup { position: fixed; left: 16px; right: 16px; bottom: 16px; max-width: 420px; margin: 0 auto; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 12px 16px; display: none; align-items: center; gap: 12px; }
+  #popup.show { display: flex; }
+  #popup span { flex: 1; }
+  #popup button { color: var(--bg); border-color: var(--bg); }
+</style>
+</head>
+<body>
+<main>
+  <h1>LVX News <span class="dim">proof page</span></h1>
+  <p class="dim">One bulletin per hour, at most 5 stories. Production starts about 10 minutes early.</p>
+  <div class="row"><span>News on</span><button id="enabled" aria-pressed="false">Off</button></div>
+  <div class="row"><span>Status: <b id="status">off</b> <span id="detail" class="dim"></span></span><button id="produce" disabled>Produce now</button></div>
+  <audio id="player" controls preload="none"></audio>
+  <ol id="stories"></ol>
+</main>
+<div id="popup" role="status"><span>The news is ready.</span><button id="listen">Listen</button><button id="dismiss">Dismiss</button></div>
+<script>
+const $ = (id) => document.getElementById(id);
+let news = null, lastDue = null;
+const post = (path, body) => fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; });
+
+function render() {
+  if (!news) return;
+  $('enabled').setAttribute('aria-pressed', news.enabled); $('enabled').textContent = news.enabled ? 'On' : 'Off';
+  $('status').textContent = news.status; $('status').className = news.status;
+  const next = news.nextAt ? ` next bulletin ${new Date(news.nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
+  $('detail').textContent = news.missing.length ? `missing: ${news.missing.join(', ')}` : news.error ? news.error : next;
+  $('produce').disabled = !news.enabled || news.status === 'producing';
+  const list = $('stories'); list.textContent = '';
+  for (const story of news.latest?.stories ?? []) {
+    const li = document.createElement('li'); li.dataset.start = story.startSec; li.dataset.end = story.endSec;
+    const a = document.createElement('a'); a.textContent = story.title; a.href = story.link || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    li.append(a, ` `, Object.assign(document.createElement('span'), { className: 'dim', textContent: `${story.source}, ${story.startSec.toFixed(1)} s` }));
+    list.append(li);
+  }
+  if (news.due && news.due !== lastDue) { lastDue = news.due; $('popup').classList.add('show'); }
+  if (!news.due) $('popup').classList.remove('show');
+}
+
+function load(id) { const src = `/news-audio/${id}`; if (!$('player').src.endsWith(src)) $('player').src = src; }
+$('player').addEventListener('timeupdate', () => { const t = $('player').currentTime; for (const li of $('stories').children) li.classList.toggle('now', t >= li.dataset.start && t < li.dataset.end); });
+$('enabled').onclick = () => post('/api/news/settings', { enabled: !news.enabled }).catch((e) => alert(e.message));
+$('produce').onclick = () => { $('produce').disabled = true; post('/api/news/produce', {}).catch((e) => alert(e.message)); };
+$('listen').onclick = () => { load(news.due); $('player').play(); post('/api/news/ack', { id: news.due }); };
+$('dismiss').onclick = () => post('/api/news/ack', { id: news.due });
+const events = new EventSource('/api/events');
+events.onmessage = (event) => { news = JSON.parse(event.data).news; render(); if (news?.latest && !$('player').src) load(news.latest.id); };
+</script>
+</body>
+</html>

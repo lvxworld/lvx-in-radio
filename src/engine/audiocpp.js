@@ -7,6 +7,7 @@ import { availableParallelism } from 'node:os';
 import { basename, join } from 'node:path';
 
 const MODEL_ID = 'yue2';
+const VOICE_MODEL = 'qwen3tts';
 const STARTUP_TIMEOUT_MS = 20_000;
 const STOP_TIMEOUT_MS = 5_000;
 const PROCESS_RECORD = 'engine-process.json';
@@ -117,6 +118,7 @@ export class AudioCppEngine {
   #starting = null;
   #aborted = false;
   #launchVersion = 0;
+  #launchedWithVoice = false;
 
   constructor(config) {
     this.#config = config;
@@ -124,6 +126,8 @@ export class AudioCppEngine {
 
   async #launch(version) {
     const { binary, modelDir, modelFile, vaeFile, modelSpecs, dataDir } = this.#config;
+    const tts = this.#voiceConfig();
+    this.#launchedWithVoice = Boolean(tts);
     await mkdir(dataDir, { recursive: true });
     const port = await freePort();
     const configPath = join(dataDir, 'engine.json');
@@ -146,6 +150,7 @@ export class AudioCppEngine {
             path: modelDir,
             session_options: { 'yue2.model_gguf': modelFile, 'yue2.vae_gguf': vaeFile },
           },
+          ...(tts ? [{ id: VOICE_MODEL, family: 'qwen3_tts', task: 'tts', mode: 'offline', path: tts.modelDir, session_options: {} }] : []),
         ],
       }),
     );
@@ -193,6 +198,12 @@ export class AudioCppEngine {
     throw new Error('audio.cpp startup timed out');
   }
 
+  /** The voice folder may arrive while the app runs, so `tts` can be a function read at each start. */
+  #voiceConfig() {
+    const { tts } = this.#config;
+    return typeof tts === 'function' ? tts() : tts;
+  }
+
   async #ensureStarted() {
     if (this.#url) return;
     this.#starting ??= this.#launch(this.#launchVersion).finally(() => {
@@ -201,13 +212,18 @@ export class AudioCppEngine {
     await this.#starting;
   }
 
-  /** Runs one YuE2 request and resolves with the raw engine response. */
-  async run(request) {
+  /** Runs one request (YuE2 unless `model` names the voice) and resolves with the raw engine response. */
+  async run(request, { model = MODEL_ID } = {}) {
     this.#aborted = false;
+    if (model === VOICE_MODEL) {
+      if (!this.#voiceConfig()) throw new Error('The news voice is not installed yet.');
+      // A server started before the voice arrived does not know it: restart it once.
+      if (this.#url && !this.#launchedWithVoice) await this.stop();
+    }
     await this.#ensureStarted();
     if (this.#aborted) throw new EngineAbortedError();
     try {
-      return await requestJson(`${this.#url}/v1/tasks/run`, { model: MODEL_ID, request });
+      return await requestJson(`${this.#url}/v1/tasks/run`, { model, request });
     } catch (error) {
       throw this.#aborted ? new EngineAbortedError() : error;
     }

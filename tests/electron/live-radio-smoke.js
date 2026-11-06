@@ -50,8 +50,8 @@ try {
   assert.equal(await read("!!document.querySelector('.songs-power')"),false,'included LVX stations hide generation controls');
   await read("document.querySelector('[aria-label=Settings]').click()");
   await waitFor(()=>read("!!document.querySelector('.lvx-settings[open] .lvx-settings-body:not([hidden])')"),'official settings');
-  assert.equal(await read("document.querySelectorAll('.lvx-settings-menu button').length"),2);
-  assert.equal(await read("document.querySelector('.lvx-settings-live').hidden&&document.querySelector('.lvx-settings-music').hidden"),true,'settings initially show only the two choices');
+  assert.equal(await read("document.querySelectorAll('.lvx-settings-menu button').length"),3);
+  assert.equal(await read("document.querySelector('.lvx-settings-live').hidden&&document.querySelector('.lvx-settings-music').hidden&&document.querySelector('.lvx-settings-voice').hidden"),true,'settings initially show only the three choices');
   await capture('settings-menu.png');
   const originalBounds=window.getBounds();
   await read("window.testSettingsDialog=document.querySelector('.lvx-settings');document.querySelector('.lvx-model-open').click()");
@@ -143,7 +143,7 @@ try {
   await read("document.querySelector('.lvx-model-open').click()");
   await capture('settings-browser-music.png');
   assert.equal(errors.length,0,errors.join('\n'));
-  console.log('PASS official UI: two-choice Settings, same-popup submenus and keyboard focus, model license/download/pause/error/ready states, Describe accepts 1000 characters, LVX generation controls hidden, browser and app layouts at 1120×720, live playback and refresh, persisted choices, no renderer errors.');
+  console.log('PASS official UI: three-choice Settings, same-popup submenus and keyboard focus, model license/download/pause/error/ready states, Describe accepts 1000 characters, LVX generation controls hidden, browser and app layouts at 1120×720, live playback and refresh, persisted choices, no renderer errors.');
   console.log('Screenshots: '+shots);
 } catch(error) { console.error(error);if(window)console.error('Renderer errors:',errors);process.exitCode=1; }
 finally { window?.destroy();await radio?.close();host?.closeAllConnections();host?.close();await rm(data,{recursive:true,force:true});app.exit(process.exitCode||0); }

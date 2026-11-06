@@ -76,6 +76,8 @@ export class RadioStation extends EventEmitter {
   #catalog;
   #preparation = null;
   #job = null;
+  #holds = 0;
+  #holdWaiters = [];
   #arrival = null;
   #availability;
   #modelReady = true;
@@ -423,7 +425,7 @@ export class RadioStation extends EventEmitter {
     this.#refreshModel().catch((error) => console.error('Could not check the model:', error.message));
     const session = this.#session;
     if (session) this.#plan(session);
-    if (!this.#job && Date.now() - this.#lastWorkAt > this.#idleUnloadMs) {
+    if (!this.#job && this.#holds === 0 && Date.now() - this.#lastWorkAt > this.#idleUnloadMs) {
       this.#engine.stop().catch((error) => console.error('Could not unload the engine:', error.message));
     }
   }
@@ -564,7 +566,7 @@ export class RadioStation extends EventEmitter {
 
   #startGenerationIfDue(session) {
     const track = session.tracks.at(-1);
-    if (track?.status !== 'queued' || this.#job || !this.#canGenerate(session)) return false;
+    if (track?.status !== 'queued' || this.#job || this.#holds > 0 || !this.#canGenerate(session)) return false;
     if (this.#preparation?.status === 'waiting') return false;
     if (track.requested) {
       this.#startSong(session, track);
@@ -613,9 +615,51 @@ export class RadioStation extends EventEmitter {
 
   /** The next work once the engine is free: a new station first, then the one on air. */
   #startNext() {
-    if (this.#job) return;
+    if (this.#job || this.#holds > 0) return;
+    if (this.#grantHold()) return;
     if (this.#preparation?.status === 'waiting') this.#startPreparation(this.#preparation);
     else if (this.#session) this.#plan(this.#session);
+  }
+
+  /**
+   * Lends the engine to another job (the news voice). Returns a release function, or null
+   * while a song is composing: a running song is never interrupted. No song starts until released.
+   */
+  tryHold() {
+    if (this.#job || this.#holds > 0) return null;
+    this.#holds += 1;
+    this.#lastWorkAt = Date.now();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.#holds -= 1;
+      this.#lastWorkAt = Date.now();
+      this.#startNext();
+    };
+  }
+
+  /**
+   * Like `tryHold`, but patient: `onGranted(release)` is called as soon as the engine is
+   * free, before the next song is planned, so back-to-back songs cannot starve the news.
+   * Returns a function that withdraws the request.
+   */
+  requestHold(onGranted) {
+    this.#holdWaiters.push(onGranted);
+    this.#grantHold();
+    return () => { this.#holdWaiters = this.#holdWaiters.filter((waiter) => waiter !== onGranted); };
+  }
+
+  #grantHold() {
+    if (this.#job || this.#holds > 0 || !this.#holdWaiters.length) return false;
+    const waiter = this.#holdWaiters.shift();
+    waiter(this.tryHold());
+    return true;
+  }
+
+  /** True while the listener has the radio playing (as reported by the player). */
+  isPlaying() {
+    return Boolean(this.#session?.playback?.playing);
   }
 
   /** Loses the running song. The caller decides what starts next. */

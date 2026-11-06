@@ -1751,3 +1751,72 @@ html[data-shell='app'] .setup-window { height:100vh!important; min-height:0!impo
 .mini-player-open:hover { border-color:#f2a33a66; color:#f2a33a; background:#f2a33a09; }
 .mini-player-open:focus-visible { outline:2px solid #f2a33a; outline-offset:3px; }
 .tray-frame.compact-frame { top:50%; left:50%; right:auto; transform:translate(-50%,-50%); animation:none; }
+
+/* Share this sound: the frequency flips to the station's Share mark, like a card turning over. It does so by itself
+   once, 2 s after arriving on a listener's station, and whenever the pointer is on the number. */
+.air-hero .broadcast-quadrant { perspective: 800px; }
+
+.air-frequency {
+  transform-origin: 50% 62%;
+  transition: transform 0.62s cubic-bezier(0.22, 0.8, 0.24, 1), opacity 0.4s ease;
+}
+
+.freq-share {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 88px;
+  margin-left: -100px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #f2a33a;
+  cursor: pointer;
+}
+
+.freq-share-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: rotateX(-88deg) scale(0.94);
+  transform-origin: 50% 62%;
+  filter: drop-shadow(0 0 10px rgba(242, 163, 58, 0.35));
+  transition: transform 0.62s cubic-bezier(0.22, 0.8, 0.24, 1), opacity 0.4s ease 0.12s;
+  pointer-events: none;
+}
+
+.freq-share-qr { width: 46px; height: 46px; }
+
+.freq-share-text {
+  font: 500 9px 'JetBrains Mono', monospace;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #e4b16d;
+}
+
+.air-hero.is-share .air-frequency,
+.air-hero:has(.freq-share:hover) .air-frequency,
+.air-hero:has(.freq-share:focus-visible) .air-frequency {
+  opacity: 0;
+  transform: rotateX(88deg) scale(0.94);
+}
+
+.air-hero.is-share .freq-share-face,
+.air-hero:has(.freq-share:hover) .freq-share-face,
+.air-hero:has(.freq-share:focus-visible) .freq-share-face {
+  opacity: 1;
+  transform: none;
+}
+
+.freq-share:focus-visible { outline: 2px solid #f2a33a; outline-offset: -6px; border-radius: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .air-frequency, .freq-share-face { transition: opacity 0.2s; transform: none !important; }
+}

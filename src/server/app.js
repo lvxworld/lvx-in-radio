@@ -92,7 +92,15 @@ function streamEvents(station, request, response, snapshot = () => station.snaps
  * Local API and UI host. Electron can run this unchanged from its main process
  * and point a window at the returned address.
  */
-export function createApp({ station, uiDir, readGpu = async () => null, setup, live }) {
+export function createApp({ station, uiDir, readGpu = async () => null, setup, live, news, voice }) {
+  const requireVoice = () => {
+    if (!voice) throw new HttpError(503, 'The news voice setup is unavailable.');
+    return voice;
+  };
+  const requireNews = () => {
+    if (!news) throw new HttpError(503, 'The news is unavailable.');
+    return news;
+  };
   const routes = {
     'GET /api/live': (request, response) => sendJson(response, 200, live?.snapshot() ?? { choiceMade:true, enabled:false }),
     'POST /api/live/settings': async (request, response) => {
@@ -103,6 +111,38 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
       await readJson(request);
       if (!live) throw new HttpError(503, 'Live stations are unavailable.');
       await live.refresh(); sendJson(response, 200, live.snapshot());
+    },
+    'GET /api/news': (request, response) => sendJson(response, 200, requireNews().snapshot()),
+    'POST /api/news/settings': async (request, response) => sendJson(response, 200, await requireNews().configure(await readJson(request))),
+    'POST /api/news/feeds': async (request, response) => {
+      const { add, remove, enable, language } = await readJson(request);
+      const desk = requireNews();
+      if (add) sendJson(response, 200, await desk.addFeed(add));
+      else if (typeof remove === 'string') sendJson(response, 200, await desk.removeFeed(remove));
+      else if (language) sendJson(response, 200, await desk.setFeedLanguage(language.id, language.language));
+      else if (enable) sendJson(response, 200, await desk.setFeedEnabled(enable.id, enable.enabled));
+      else throw new HttpError(400, 'Nothing to change.');
+    },
+    'GET /api/news/voice': async (request, response) => sendJson(response, 200, await requireVoice().snapshot()),
+    'POST /api/news/voice/download': async (request, response) => {
+      await readJson(request);
+      await requireVoice().download(true);
+      sendJson(response, 202, await voice.snapshot());
+    },
+    'POST /api/news/voice/pause': async (request, response) => {
+      await readJson(request);
+      await requireVoice().pause();
+      sendJson(response, 200, await voice.snapshot());
+    },
+    'POST /api/news/produce': async (request, response) => {
+      await readJson(request);
+      await requireNews().produceNow();
+      sendJson(response, 200, news.snapshot());
+    },
+    'POST /api/news/ack': async (request, response) => {
+      const { id } = await readJson(request);
+      await requireNews().acknowledge(id);
+      sendJson(response, 200, news.snapshot());
     },
     'POST /api/playback/error': async (request, response) => {
       const { trackId, mediaKey } = await readJson(request);
@@ -172,7 +212,7 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
     },
     'GET /api/engine': async (request, response) => sendJson(response, 200, await station.engineStatus()),
     'GET /api/gpu': async (request, response) => sendJson(response, 200, { percent: await readGpu() }),
-    'GET /api/events': (request, response) => streamEvents(station, request, response, () => ({ ...station.snapshot(), ...(live ? { live:live.snapshot() } : {}) })),
+    'GET /api/events': (request, response) => streamEvents(station, request, response, () => ({ ...station.snapshot(), ...(live ? { live:live.snapshot() } : {}), ...(news ? { news:news.snapshot() } : {}) })),
   };
 
   const serveAudio = async (request, response, trackId, mediaKey) => {
@@ -201,6 +241,12 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
     const route = routes[`${request.method} ${pathname}`];
     if (route) return route(request, response);
     if (request.method !== 'GET') throw new HttpError(405, 'Method not allowed');
+    const bulletin = /^\/news-audio\/([\w-]+)$/.exec(pathname);
+    if (bulletin) {
+      const path = news?.audioPath(bulletin[1]);
+      if (!path) throw new HttpError(404, 'Bulletin not available');
+      return sendFile(request, response, path, AUDIO_TYPES['.wav']);
+    }
     const audio = /^\/audio\/([\w-]+)$/.exec(pathname);
     if (audio) return serveAudio(request, response, audio[1], searchParams.get('v'));
     return serveUi(request, response, pathname);

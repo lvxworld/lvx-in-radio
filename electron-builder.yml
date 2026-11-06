@@ -6,6 +6,7 @@ directories:
 files:
   - package.json
   - src/**
+  - "!src/ui/news-poc.html"
 extraResources:
   - from: vendor/audio.cpp
     to: engine

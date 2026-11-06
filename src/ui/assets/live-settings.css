@@ -83,5 +83,30 @@
 .lvx-settings-music .setup-license input { width:auto; padding:0; margin-top:3px; }
 .lvx-settings-music .setup-license span { flex:1; }
 .lvx-settings-music .lvx-model-error { color:#f1af89; margin:12px 0; }
+.lvx-settings-voice .lvx-voice-status { font:500 9px 'JetBrains Mono',monospace; color:#e4b16d; letter-spacing:.1em; }
+.lvx-settings-voice .lvx-voice-intro { margin:12px 0 18px; }
+.lvx-settings-voice .lvx-voice-detail { font-size:11px; margin:12px 0 18px; }
+.lvx-settings-voice .lvx-voice-error { color:#f1af89; margin:12px 0; }
+.lvx-settings-voice .lvx-settings-note a { color:#e4b16d; }
+.lvx-voice-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
 .lvx-model-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
 .lvx-settings-music .setup-playing { margin-top:20px; font-size:9px; }
+
+.lvx-news-heading { margin:22px 0 6px; font:500 9px 'JetBrains Mono',monospace; letter-spacing:.12em; text-transform:uppercase; color:#e4b16d; }
+.lvx-news-heading:first-child { margin-top:0; }
+.lvx-feed-list { display:grid; gap:8px; margin:14px 0; }
+.lvx-feed-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #4a3a28; border-radius:8px; background:#1c1712; }
+.lvx-feed-row label { flex:1; min-width:0; display:flex; align-items:center; gap:12px; cursor:pointer; }
+.lvx-feed-row input[type=checkbox] { width:auto; padding:0; flex:none; accent-color:#f2a33a; }
+.lvx-feed-row span { display:grid; min-width:0; }
+.lvx-feed-row strong { font-size:13px; font-weight:500; color:#f3ece2; }
+.lvx-feed-row small { font-size:10px; color:#a8947a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lvx-feed-remove { border:0; background:none; color:#c3ad90; font-size:20px; line-height:1; cursor:pointer; padding:2px 6px; }
+.lvx-feed-remove:hover { color:#f1af89; }
+.lvx-feed-add { display:grid; grid-template-columns:minmax(0,1fr) 112px auto; gap:8px; }
+.lvx-feed-add .lvx-feed-url { grid-column:1 / -1; }
+.lvx-settings .lvx-feed-add select, .lvx-settings .lvx-feed-row select.lvx-feed-row-language { width:112px; flex:none; }
+.lvx-settings .lvx-feed-row select.lvx-feed-row-language { padding:7px 8px; font-size:11px; }
+.lvx-feed-error { margin:10px 0 0; }
+@media (max-width:560px) { .lvx-feed-add { grid-template-columns:1fr 112px; } .lvx-feed-add .lvx-feed-add-button { grid-column:1 / -1; } }
+.lvx-settings-voice .lvx-feed-error { color:#f1af89; margin:10px 0 0; }

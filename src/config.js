@@ -16,6 +16,13 @@ export function loadConfig(env = process.env, overrides = {}) {
     libraryDir: join(dataDir, 'library'),
     stationsFile: join(dataDir, 'stations.json'),
     liveRadio: { path: join(dataDir, 'live-radio.json'), defaultUrl: env.LVX_STATION_CATALOG_URL ?? DEFAULT_STATION_CATALOG_URL },
+    news: {
+      path: join(dataDir, 'news.json'),
+      dir: join(dataDir, 'news'),
+      cacheDir: join(dataDir, 'news-voice-cache'),
+      voiceModelDir: resolve(env.LVX_NEWS_VOICE_DIR ?? join(dataDir, 'models/Qwen3-TTS-12Hz-1.7B-CustomVoice')),
+      speaker: env.LVX_NEWS_SPEAKER ?? 'Ryan',
+    },
     lux: {
       bundledDir: overrides.luxDir ?? env.LVX_LUX_BUNDLED_DIR ?? join(ROOT, 'lux'),
       downloadDir: join(dataDir, 'lux'),
