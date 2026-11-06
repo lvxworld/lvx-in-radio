@@ -9,9 +9,16 @@ import { NEWS_STATION, NewsDesk } from '../src/radio/news/news-desk.js';
 
 const HOUR = 3_600_000, MINUTE = 60_000;
 const at = (hour, minute = 0, second = 0) => new Date(2026, 10, 6, hour, minute, second).getTime();
-const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise((resolve) => setTimeout(resolve, 4)); };
+// Lets real file work finish: waits until nothing is being produced for a few checks in a row (patient on a slow runner).
+const flush = async (busy = () => false) => {
+  let quiet = 0;
+  for (let i = 0; i < 400 && quiet < 5; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 4));
+    quiet = busy() ? 0 : quiet + 1;
+  }
+};
 
-function clock(start) {
+function clock(start, busy) {
   let now = start, next = 0;
   const timers = new Map();
   return {
@@ -25,10 +32,10 @@ function clock(start) {
         timers.delete(due[0]);
         now = Math.max(now, due[1].at);
         due[1].fn();
-        await flush();
+        await flush(busy);
       }
       now = target;
-      await flush();
+      await flush(busy);
     },
   };
 }
@@ -43,7 +50,8 @@ const fakeMix = ({ voices }) => {
 async function fixture(t, { start = at(10, 30), ...overrides } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'lvx-news-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const time = clock(start);
+  let producing = () => false;
+  const time = clock(start, () => producing());
   const calls = { fetch: 0, render: 0 };
   const state = { canProduce: true, active: true, stories: [story('a'), story('b')], ready: true, renderGate: null, released: 0, parts: [], waiters: [] };
   const desk = new NewsDesk({
@@ -57,6 +65,7 @@ async function fixture(t, { start = at(10, 30), ...overrides } = {}) {
     now: time.now, setTimer: time.setTimer, clearTimer: time.clearTimer,
     ...overrides,
   });
+  producing = () => desk.snapshot().status === 'producing' && !state.renderGate;
   await desk.load();
   t.after(() => desk.close());
   return { desk, time, calls, state, root };

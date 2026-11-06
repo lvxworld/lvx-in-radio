@@ -489,7 +489,7 @@ test('steering changes songs not started yet, not the running one', async () => 
   const [running] = station.snapshot().tracks;
   assert.equal(running.generation.energy, 25);
   engine.finish();
-  await settle();
+  while (station.snapshot().tracks.find((track) => track.id === running.id)?.status !== 'ready') await settle();
   await station.setPlayback({ trackId: running.id, positionSec: 0, playing: true });
   assert.match(engine.requests[1].options.style, /massive drop/);
 });
