@@ -109,3 +109,74 @@ test('fetchFrom reads exactly the sources it is given', async () => {
   assert.deepEqual(seen, ['https://example.com/a.xml']);
   assert.deepEqual(stories.map((story) => [story.source, story.language]), [['Mine', 'it']]);
 });
+
+test('parseFeed reads a feed whose summaries are HTML-escaped many times over', () => {
+  const summary = '&lt;p&gt;Text &amp; more&lt;/p&gt;'.repeat(150);
+  const items = Array.from({ length: 10 }, (_, i) => `<item><title>Story ${i}</title><description>${summary}</description></item>`).join('');
+  const stories = parseFeed(`<rss><channel>${items}</channel></rss>`, { id: 'x', name: 'X' });
+  assert.equal(stories.length, 10);
+  assert.match(stories[0].summary, /^Text & more/);
+});
+
+const rssItems = (items) => `<rss><channel>${items.map(([title, date]) => `<item><title>${title}</title>${date ? `<pubDate>${date}</pubDate>` : ''}</item>`).join('')}</channel></rss>`;
+const day = (n) => new Date(Date.UTC(2026, 4, n, 10)).toUTCString();
+
+test('parseFeed keeps the newest items of an oldest-first feed, not the first in the document', () => {
+  const xml = rssItems(Array.from({ length: 40 }, (_, i) => [`Story number ${i + 1} alpha${i}`, day(i + 1)]));
+  const stories = parseFeed(xml, BBC);
+  assert.equal(stories.length, 10);
+  assert.equal(stories[0].title, 'Story number 40 alpha39');
+  assert.equal(stories[9].title, 'Story number 31 alpha30');
+});
+
+test('parseFeed orders an unordered feed newest first', () => {
+  const stories = parseFeed(rssItems([['B one', day(5)], ['D three', day(20)], ['A two', day(1)], ['C four', day(10)]]), BBC);
+  assert.deepEqual(stories.map((s) => s.title), ['D three', 'C four', 'B one', 'A two']);
+});
+
+test('parseFeed puts undated, invalid and future-dated items last, keeping document order', () => {
+  const future = new Date(Date.now() + 5 * 24 * 3600_000).toUTCString();
+  const stories = parseFeed(rssItems([['No date', ''], ['Bad date', 'last tuesday'], ['Future clock', future], ['Dated old', day(1)], ['Dated new', day(2)]]), BBC);
+  assert.deepEqual(stories.map((s) => s.title), ['Dated new', 'Dated old', 'No date', 'Bad date', 'Future clock']);
+  assert.ok(stories.slice(2).every((s) => s.publishedAt === ''));
+});
+
+test('parseFeed keeps the order of a feed with no dates at all', () => {
+  const stories = parseFeed(rssItems([['First here', ''], ['Second there', ''], ['Third also', '']]), BBC);
+  assert.deepEqual(stories.map((s) => s.title), ['First here', 'Second there', 'Third also']);
+});
+
+test('parseFeed prefers Atom published over updated, and reads dc:date', () => {
+  const atom = '<feed><entry><title>Edited later</title><published>2026-06-01T10:00:00Z</published><updated>2026-06-20T10:00:00Z</updated></entry><entry><title>Other entry</title><published>2026-06-10T10:00:00Z</published></entry></feed>';
+  const [first, second] = parseFeed(atom, NPR);
+  assert.equal(first.title, 'Other entry');
+  assert.equal(second.publishedAt, '2026-06-01T10:00:00.000Z');
+  const dc = '<rss xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><item><title>Dc story</title><dc:date>2026-06-03T08:00:00Z</dc:date></item></channel></rss>';
+  assert.equal(parseFeed(dc, BBC)[0].publishedAt, '2026-06-03T08:00:00.000Z');
+});
+
+test('parseFeed understands the CEST and CET zones of Italian feeds', () => {
+  const xml = rssItems([['Estate notizia', 'Mon, 01 Jun 2026 10:00:00 CEST'], ['Inverno notizia', 'Mon, 05 Jan 2026 10:00:00 CET']]);
+  const [summer, winter] = parseFeed(xml, { id: 'it', name: 'IT', language: 'it' });
+  assert.equal(summer.publishedAt, '2026-06-01T08:00:00.000Z');
+  assert.equal(winter.publishedAt, '2026-01-05T09:00:00.000Z');
+});
+
+test('pickStories takes 5 in all from large feeds and still finds 5 past near-duplicates', () => {
+  const xml = rssItems(Array.from({ length: 40 }, (_, i) => [`Same headline about the harbour ${i < 8 ? '' : 'unique' + i}`, day(i + 1)]));
+  const picked = pickStories([parseFeed(xml, BBC)]);
+  assert.ok(picked.length <= 5);
+  assert.equal(pickStories([parseFeed(rssItems(Array.from({ length: 40 }, (_, i) => [`Distinct tale${i} word${i}`, day(i + 1)])), BBC)]).length, 5);
+});
+
+test('pickStories does not split accented Italian words when comparing titles', () => {
+  const a = { id: 'a', title: 'Città divisa sulla riforma', publishedAt: '2026-06-02T00:00:00.000Z' };
+  const b = { id: 'b', title: 'Città divisa sulla riforma fiscale', publishedAt: '2026-06-01T00:00:00.000Z' };
+  assert.equal(pickStories([[a, b]]).length, 1);
+});
+
+test('the default sources are BBC, NPR and Lux in Tenebris, each on a distinct https address', () => {
+  assert.deepEqual(NEWS_FEEDS.map((feed) => feed.id), ['bbc', 'npr', 'lux']);
+  assert.equal(new Set(NEWS_FEEDS.map((feed) => feed.url)).size, 3);
+  assert.ok(NEWS_FEEDS.every((feed) => feedAddress(feed.url) === feed.url));
+});

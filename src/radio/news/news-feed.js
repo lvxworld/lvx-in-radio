@@ -5,6 +5,7 @@ import { catalogAddress, remoteResponse } from '../remote-http.js';
 export const NEWS_FEEDS = [
   { id: 'bbc', name: 'BBC News', url: 'https://feeds.bbci.co.uk/news/world/rss.xml' },
   { id: 'npr', name: 'NPR News', url: 'https://feeds.npr.org/1001/rss.xml' },
+  { id: 'lux', name: 'Lux in Tenebris', url: 'https://luxintenebris.news/rss.xml' },
 ];
 
 /** Feeds are for programs; many sites refuse a request that does not say who is asking. */
@@ -12,13 +13,15 @@ export const FEED_USER_AGENT = 'LVXInRadio/0.1 (news feed reader; +https://githu
 
 const MAX_FEED_BYTES = 1024 ** 2;
 const FETCH_TIMEOUT_MS = 15_000;
-const MAX_ITEMS_PER_FEED = 30;
+const MAX_ITEMS_PER_FEED = 500; // work bound only; the cut to the newest happens after sorting
+const KEPT_PER_FEED = 10; // newest per feed; more than the 5 aired, so near-duplicates can be skipped
+const MAX_FUTURE_MS = 24 * 3600_000;
 const MAX_TITLE_CHARS = 200;
 const MAX_SUMMARY_CHARS = 1000;
 const DUPLICATE_OVERLAP = 0.6;
 
 // A feed is remote input: entity expansion is capped so a hostile document cannot eat memory or time.
-const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@', trimValues: true, processEntities: { enabled: true, maxEntitySize: 1000, maxTotalExpansions: 1000, maxExpandedLength: 20_000 } });
+const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@', trimValues: true, processEntities: { enabled: true, maxEntitySize: 1000, maxTotalExpansions: 50_000, maxExpandedLength: 200_000 } });
 
 const text = (value) => (value && typeof value === 'object' ? value['#text'] ?? '' : value ?? '');
 const plain = (value) => String(text(value))
@@ -54,6 +57,22 @@ export function feedAddress(value) {
   return url.href;
 }
 
+const ZONES = { CEST: '+0200', CET: '+0100', BST: '+0100', EEST: '+0300', EET: '+0200' };
+
+/** Milliseconds, or NaN. V8 does not know CEST and CET, which Italian feeds use; a date far in the future is a bad clock. */
+function dateOf(value) {
+  const raw = String(value ?? '').trim().replace(/\b(CEST|CET|BST|EEST|EET)$/, (zone) => ZONES[zone]);
+  const time = Date.parse(raw);
+  return time > Date.now() + MAX_FUTURE_MS ? NaN : time;
+}
+
+/** Newest first; items without a usable date come last, in the feed's own order (the sort is stable). */
+const newestFirst = (a, b) => {
+  const left = a.publishedAt ? Date.parse(a.publishedAt) : -Infinity;
+  const right = b.publishedAt ? Date.parse(b.publishedAt) : -Infinity;
+  return left === right ? 0 : left < right ? 1 : -1;
+};
+
 /** Reads RSS or Atom into stories; anything unreadable gives an empty list. */
 export function parseFeed(xml, source) {
   if (typeof xml !== 'string' || xml.length > MAX_FEED_BYTES) return [];
@@ -69,7 +88,7 @@ export function parseFeed(xml, source) {
   for (const item of items) {
     const title = plain(item.title).slice(0, MAX_TITLE_CHARS).trim();
     if (!title) continue;
-    const published = Date.parse(text(item.pubDate ?? item.updated ?? item.published));
+    const published = dateOf(text(item.pubDate ?? item.published ?? item['dc:date'] ?? item.updated));
     stories.push({
       id: `${source.id}-${createHash('sha1').update(title).digest('hex').slice(0, 8)}`,
       source: source.name,
@@ -80,10 +99,11 @@ export function parseFeed(xml, source) {
       publishedAt: Number.isFinite(published) ? new Date(published).toISOString() : '',
     });
   }
-  return stories;
+  // Feeds may be oldest-first or unordered: sort the whole feed before cutting it.
+  return stories.sort(newestFirst).slice(0, KEPT_PER_FEED);
 }
 
-const words = (title) => new Set(title.toLowerCase().match(/[a-z0-9]+/g) ?? []);
+const words = (title) => new Set(title.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
 
 function similar(a, b) {
   const left = words(a), right = words(b);
@@ -94,7 +114,7 @@ function similar(a, b) {
 
 /** Newest first within each feed, interleaved across feeds, without near-duplicates. */
 export function pickStories(lists, max = 5) {
-  const queues = lists.map((list) => [...list].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)));
+  const queues = lists.map((list) => [...list].sort(newestFirst));
   const picked = [];
   while (picked.length < max && queues.some((queue) => queue.length)) {
     for (const queue of queues) {
