@@ -68,6 +68,7 @@ The app is built with Electron (MIT) and bundles [audio.cpp](https://github.com/
 | `LVX_MODEL_SPECS` | Path to the audio.cpp `model_specs` directory |
 | `LVX_MODEL_DIR` | Directory holding the YuE2 weights and `sidecars/` |
 | `LVX_MODEL_FILE`, `LVX_VAE_FILE` | Weight file names inside `LVX_MODEL_DIR` |
+| `HF_HUB_CACHE`, `HF_HOME` | Hugging Face cache checked on a fresh install for the pinned YuE2 and voice snapshots (default `~/.cache/huggingface/hub`) |
 
 ## Project skills
 

@@ -72,7 +72,11 @@ Decorative animation must respect `prefers-reduced-motion`. UI copy is in Englis
 `src/engine/model-setup.js` owns download, resume and existing-folder verification.
 Pinned URLs, sizes and SHA-256 hashes live in `model-manifest.json`; no runtime
 checkout dependency. Part files stay across pauses/restarts, and model settings
-store the selected path and verified size/mtime fingerprints. Never enable the
+store the selected path and verified size/mtime fingerprints. On a fresh install (no
+saved settings, no files in the default folder) each setup looks for its pinned
+revision in the Hugging Face cache (`HF_HUB_CACHE`, `HF_HOME/hub`, then
+`~/.cache/huggingface/hub`) and, if every file passes the hash check, uses that
+snapshot in place like a chosen folder; a bad copy falls back to downloading. Never enable the
 engine before setup is ready. A missing bundled engine requires reinstalling the
 app; only weights are downloaded at runtime. The setup API polls status, download
 and pause; the folder picker is restricted to the window's IPC sender.

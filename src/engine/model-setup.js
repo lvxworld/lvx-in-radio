@@ -2,12 +2,20 @@ import { createReadStream } from 'node:fs';
 import { access, constants, mkdir, open, readFile, rename, rm, stat, statfs, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import manifest from './model-manifest.json' with { type: 'json' };
 
 const MARGIN_BYTES = 256 * 1024 ** 2;
 
 async function sizeOf(path) {
   try { const s = await stat(path); return s.isFile() ? s.size : 0; } catch { return 0; }
+}
+
+/** The Hugging Face hub cache, where other tools may already hold the pinned weights. */
+export function huggingFaceHub(env = process.env) {
+  if (env.HF_HUB_CACHE) return env.HF_HUB_CACHE;
+  if (env.HF_HOME) return join(env.HF_HOME, 'hub');
+  return join(env.XDG_CACHE_HOME || join(homedir(), '.cache'), 'huggingface', 'hub');
 }
 
 /** Owns the resumable model installation, not the music engine or the player. */
@@ -17,6 +25,7 @@ export class ModelSetup {
   #settings;
   #ownedDir;
   #fetch;
+  #hub;
   #space;
   #controller;
   #work;
@@ -24,7 +33,8 @@ export class ModelSetup {
   #verified = {};
   #closed = false;
 
-  constructor(engine, { files = manifest.files, fetchFile = fetch, freeSpace } = {}) {
+  constructor(engine, { files = manifest.files, fetchFile = fetch, freeSpace, hub = huggingFaceHub() } = {}) {
+    this.#hub = hub;
     this.#engine = engine;
     this.#ownedDir = engine.modelDir;
     this.#settings = join(engine.dataDir, 'model-settings.json');
@@ -35,16 +45,38 @@ export class ModelSetup {
 
   async initialize() {
     await mkdir(this.#engine.dataDir, { recursive: true });
+    let fresh = false;
     try {
       const saved = JSON.parse(await readFile(this.#settings, 'utf8'));
       if (saved.directory) this.#engine.modelDir = saved.directory;
       this.#state.accepted = saved.accepted === true;
       this.#verified = saved.verified ?? {};
-    } catch (e) { if (e.code !== 'ENOENT') this.#state.error = 'The saved model settings could not be read. Choose the folder again.'; }
+    } catch (e) { if (e.code === 'ENOENT') fresh = true; else this.#state.error = 'The saved model settings could not be read. Choose the folder again.'; }
     const stamps = await this.#stamps();
     if (stamps && JSON.stringify(stamps) === JSON.stringify(this.#verified)) this.#state.status = 'ready';
     else if (stamps) this.#launch(() => this.#verifyDirectory());
+    else if (fresh) { const cached = await this.#cachedSnapshot(); if (cached) this.#launch(() => this.#useCache(cached)); }
     await this.#progress();
+  }
+
+  // The pinned revision's snapshot in the Hugging Face cache, when it holds every file at its size.
+  async #cachedSnapshot() {
+    const pin = /^https:\/\/huggingface\.co\/([^/]+)\/([^/]+)\/resolve\/([0-9a-f]{40})\//.exec(this.#files[0]?.url ?? '');
+    if (!pin || !this.#hub) return null;
+    const dir = join(this.#hub, `models--${pin[1]}--${pin[2]}`, 'snapshots', pin[3]);
+    for (const file of this.#files) if (await sizeOf(join(dir, file.path)) !== file.size) return null;
+    return dir;
+  }
+
+  // Used in place like a chosen folder, after the same hash check; a bad copy falls back to downloading.
+  async #useCache(dir) {
+    this.#engine.modelDir = dir;
+    try { await this.#verifyDirectory(); } catch (error) {
+      this.#engine.modelDir = this.#ownedDir;
+      if (this.#controller.signal.aborted) throw error;
+      Object.assign(this.#state, { status: 'idle', file: '' });
+      await this.#progress();
+    }
   }
 
   async snapshot() {

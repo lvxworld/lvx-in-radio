@@ -36,7 +36,8 @@ export async function startRadio(config) {
   const voice = new ModelSetup(voiceFolder, { files: voiceManifest.files });
   await voice.initialize();
   const voiceInstalled = () => voiceManifest.files.every((file) => existsSync(join(voiceFolder.modelDir, file.path)));
-  const engine = new AudioCppEngine({ ...config.engine, tts: () => (voiceInstalled() ? { modelDir: voiceFolder.modelDir } : undefined) });
+  // The same object as the setup's, so a folder found or chosen after startup reaches the engine.
+  const engine = new AudioCppEngine(Object.assign(config.engine, { tts: () => (voiceInstalled() ? { modelDir: voiceFolder.modelDir } : undefined) }));
   station = new RadioStation({
     engine,
     library,

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { test } from 'node:test';
-import { ModelSetup } from '../src/engine/model-setup.js';
+import { ModelSetup, huggingFaceHub } from '../src/engine/model-setup.js';
 
 const content = Buffer.alloc(20000, 'music');
 const digest = data => createHash('sha256').update(data).digest('hex');
@@ -80,4 +80,36 @@ test('a second download request cannot start a parallel task',async t=>{
 
 test('removing an installed model returns setup to the required state',async t=>{
  const {setup,engine,file}=await fixture(t);await setup.download(true);await waitFor(setup,s=>s.ready);await rm(join(engine.modelDir,file.path));const status=await setup.snapshot();assert.equal(status.ready,false);assert.equal(status.status,'idle');
+});
+
+async function hubFixture(t, data) {
+  const root=await mkdtemp(join(tmpdir(),'lvx-hub-'));
+  t.after(()=>rm(root,{recursive:true,force:true}));
+  const rev='a'.repeat(40), repo=join(root,'hub/models--org--repo');
+  const file={path:'sidecars/music.gguf',size:content.length,sha256:digest(content),url:`https://huggingface.co/org/repo/resolve/${rev}/sidecars/music.gguf`};
+  const snapshot=join(repo,'snapshots',rev);
+  await mkdir(join(snapshot,'sidecars'),{recursive:true});await mkdir(join(repo,'blobs'));
+  await writeFile(join(repo,'blobs',file.sha256),data);
+  await symlink(join('../../../blobs',file.sha256),join(snapshot,file.path));
+  const engine={dataDir:join(root,'data'),modelDir:join(root,'data/models'),binary:'/bin/sh',modelSpecs:root};
+  await writeFile(join(root,'yue2.json'),'{}');
+  return{root,engine,file,snapshot,hub:join(root,'hub')};
+}
+test('a fresh install uses the pinned snapshot from the Hugging Face cache in place and remembers it',async t=>{
+ const {engine,file,snapshot,hub}=await hubFixture(t,content);
+ const setup=new ModelSetup(engine,{files:[file],hub});await setup.initialize();
+ const s=await waitFor(setup,s=>s.ready);assert.equal(s.directory,snapshot);assert.equal(engine.modelDir,snapshot);await setup.close();
+ const again=new ModelSetup({...engine,modelDir:join(engine.dataDir,'models')},{files:[file],hub:null});await again.initialize();
+ assert.equal((await again.snapshot()).ready,true);await again.close();
+});
+test('a corrupt Hugging Face cache copy is ignored and leaves setup ready to download',async t=>{
+ const {engine,file,hub}=await hubFixture(t,Buffer.alloc(content.length,'noise'));
+ const owned=engine.modelDir;
+ const setup=new ModelSetup(engine,{files:[file],hub});await setup.initialize();
+ const s=await waitFor(setup,s=>s.status==='idle');assert.equal(s.ready,false);assert.equal(s.error,null);assert.equal(engine.modelDir,owned);await setup.close();
+});
+test('the Hugging Face cache follows HF_HUB_CACHE, then HF_HOME, then the default',()=>{
+ assert.equal(huggingFaceHub({HF_HUB_CACHE:'/x',HF_HOME:'/y'}),'/x');
+ assert.equal(huggingFaceHub({HF_HOME:'/y'}),'/y/hub');
+ assert.equal(huggingFaceHub({XDG_CACHE_HOME:'/z'}),'/z/huggingface/hub');
 });
