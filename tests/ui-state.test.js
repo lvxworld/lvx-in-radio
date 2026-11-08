@@ -121,6 +121,16 @@ test('switching a Sound DNA style on keeps the sound cue without a particle burs
   assert.deepEqual(sounds, [true]);
 });
 
+test('dragging a style to 100% removes the other styles instead of leaving them at 0', () => {
+  const { component } = radioView();
+  component.setState = patch => Object.assign(component.state, patch);
+  component.state.sel = { Pop: 35, Rock: 35, Country: 30 };
+  component.state.dnaSlots = ['Pop', 'Rock', 'Country', null, null];
+  component.setMixPercent('Country', 100);
+  assert.deepEqual({ ...component.state.sel }, { Country: 100 });
+  assert.deepEqual({ ...component.mixPercents() }, { Country: 100 });
+});
+
 test('opening the compact player and restoring the radio preserves playback and the station', () => {
   const { component, session } = radioView();
   component.setState = patch => Object.assign(component.state, patch);
