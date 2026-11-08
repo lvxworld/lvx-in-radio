@@ -23,7 +23,7 @@ Use the existing `node:test` runner with fake engines and small HTTP fixtures. U
 
 ## Commit & Pull Request Guidelines
 
-Use concise, imperative commit subjects such as `Add station playback controls`. Keep commits focused on one change. Push only when the owner asks.
+Use concise, imperative commit subjects such as `Add station playback controls`. Keep commits focused on one change. Push only when the owner asks. Publish code changes through a pull request; never push directly to `main`. Create release tags from `main` only after the pull request has been merged.
 
 Before building a DMG, always prepare and share a working HTML preview of the proposed interface changes with the owner.
 

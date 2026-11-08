@@ -1,3 +1,4 @@
+import * as LvxGeneration from '../src/ui/assets/generation-control.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
@@ -12,7 +13,7 @@ function radioView() {
     setTimeout, clearTimeout,
     React: { createRef: () => ({ current: null }) },
     DCLogic: class { props = {}; },
-    window: { LvxRadio: { generateNow: async id => { requests.push(id); } } },
+    window: { LvxGeneration, LvxRadio: { generateNow: async id => { requests.push(id); } } },
   });
   vm.runInContext(source + ';globalThis.component = new Component()', context);
   const component = context.component;
@@ -169,4 +170,68 @@ test('mini-player audio levels are forwarded only while visible and at most 30 t
   component.miniVisualsActive = false;
   component.syncMiniVisuals(1100);
   assert.equal(messages.length, 2);
+});
+
+test('sharing On air uses its saved words and first seed even after editing Create', () => {
+  const { component, session } = radioView();
+  session.stationRecordId = 'my-station';
+  const config = { mix: { Jazz: 100 }, energy: 25, bpm: 80, dark: 30, melody: true, mood: 'Piano, pioggia e città di notte', seed: 99 };
+  Object.assign(component.state, { screen: 'air', describe: true, prompt: 'An unrelated Create draft', savedStations: [{ id: 'my-station', config, firstSeed: 7 }] });
+  assert.deepEqual(JSON.parse(JSON.stringify(component.codeConfig())), { ...config, seed: 7 });
+  assert.equal(component.shareVals().shareParams.find(row => row.label === 'WORDS').value, config.mood);
+  component.state.screen = 'create';
+  assert.equal(component.codeConfig().mood, 'An unrelated Create draft');
+});
+
+test('opening a shared station restores Describe it in words and its enabled state', () => {
+  const { component } = radioView();
+  component.setState = (patch, done) => { Object.assign(component.state, patch); done?.(); };
+  component.toastMsg = () => {};
+  component.applyCode({ mix: { Jazz: 100 }, energy: 25, bpm: 80, dark: 30, melody: true, scenario: 'Relax', mood: 'Rain ~ café 🌙', seed: 7 });
+  assert.equal(component.state.prompt, 'Rain ~ café 🌙');
+  assert.equal(component.state.describe, true);
+  assert.equal(component.state.sharedSeed, 7);
+  assert.equal(component.state.screen, 'create');
+});
+
+test('mini-player generation state follows the current station and toggles the existing API', async () => {
+  const { component, session, api } = radioView();
+  const changes = [];
+  api.setGeneration = async enabled => { changes.push(enabled); };
+  component.toastMsg = () => {};
+  assert.equal(component.trayStateNow().generationAvailable, true);
+  assert.equal(component.trayStateNow().generationEnabled, true);
+  component.toggleGeneration();
+  session.generationEnabled = false;
+  assert.equal(component.trayStateNow().generationEnabled, false);
+  component.toggleGeneration();
+  assert.deepEqual(changes, [false, true]);
+  session.lux = true;
+  assert.equal(component.trayStateNow().generationAvailable, false);
+  component.toggleGeneration();
+  session.lux = false;
+  component.state.engineReady = false;
+  assert.equal(component.trayStateNow().generationAvailable, false);
+  component.toggleGeneration();
+  assert.deepEqual(changes, [false, true]);
+});
+
+test('the mini generation dial receives the same action, hints and progress as On air', () => {
+  const { component, session } = radioView();
+  component.state.gpu = 42;
+  component.trackProgress = () => 37;
+  session.tracks.push({ id:'composing', status:'generating', generation:{mix:{Jazz:100}} });
+  const view = component.renderVals(), mini = component.trayStateNow().generation;
+  assert.equal(mini.action,view.generationAction);
+  assert.equal(mini.caption,view.generationCaption);
+  assert.equal(mini.tip,view.genTip);
+  assert.equal(mini.progress,37);
+  assert.equal(mini.active,true);
+  assert.equal(mini.gpu,view.gpuLabel);
+  component.state.engineReady = false;
+  assert.equal(component.trayStateNow().generation.visible,true,'a personal station keeps the same disabled control when its model is missing');
+  assert.equal(component.trayStateNow().generation.disabled,true);
+  assert.equal(component.trayStateNow().generation.tip,component.renderVals().genTip);
+  session.lux = true;
+  assert.equal(component.trayStateNow().generation.visible,false);
 });

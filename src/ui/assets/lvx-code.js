@@ -61,3 +61,37 @@ export function decodeCode(text) {
     ...(instrumental === '1' ? { instrumental: true } : {}),
   };
 }
+
+// Long descriptions are compressed inside the QR, without changing old LVX1 codes.
+export async function encodeShareCode(config) {
+  const plain = encodeCode(config);
+  if (plain.length < 350) return plain;
+  const stream = new Blob([plain]).stream().pipeThrough(new CompressionStream('deflate'));
+  const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  const compact = 'LVX2~' + btoa(String.fromCharCode(...bytes));
+  return compact.length < plain.length ? compact : plain;
+}
+
+export async function decodeShareCode(text) {
+  if (!String(text).startsWith('LVX2~')) return decodeCode(text);
+  try {
+    const bytes = Uint8Array.from(atob(text.slice(5)), char => char.charCodeAt(0));
+    const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate')).getReader();
+    const chunks = [];
+    let size = 0;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.length;
+        if (size > 20000) throw new Error('Not a Lux code');
+        chunks.push(value);
+      }
+    } finally {
+      await reader.cancel();
+    }
+    return decodeCode(await new Blob(chunks).text());
+  } catch {
+    throw new Error('Not a Lux code');
+  }
+}

@@ -4,6 +4,8 @@ if (!window.LvxMini) {
   const send = command => window.parent.postMessage({ type: 'lvx-mini-action', command }, window.location.origin);
   window.LvxMini = {
     togglePlay: () => send('toggle-play'),
+    toggleGeneration: () => send('toggle-generation'),
+    generationHover: active => send(active ? 'generation-enter' : 'generation-leave'),
     open: () => send('open'),
     hide: () => send('hide'),
     toTray: () => send('tray'),

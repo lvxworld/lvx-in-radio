@@ -136,6 +136,32 @@ try {
   await window.webContents.insertText('extra');
   assert.equal(await read("document.querySelector('#radio-description').value.length"),1000,'Describe enforces the expanded limit');
   await capture('describe-1000.png');
+  // Save and decode actual dust QR PNGs, then import one through Create's file input.
+  for (const instrumental of [false,true]) {
+    const decoded=await read(`(async()=>{
+      const config={mix:{Pop:45,Rock:30,Jazz:15,'R&B':5,'Lo-fi':5},energy:63,bpm:118,dark:42,melody:true,scenario:'Get lost',flavors:['piano-soft','drums-dry'],hint:'Jazz',seed:123456789,mood:${JSON.stringify(description)},...( ${instrumental} ? {instrumental:true}:{} )};
+      const text=await window.LvxCode.encodeShareCode(config);
+      const poster=window.LvxDust.renderPoster(text,[{color:'#f2a33a',share:60},{color:'#a8bfff',share:40}],'Words in the signal');
+      const blob=await new Promise(resolve=>poster.toBlob(resolve,'image/png'));
+      window.testCodeFile=new File([blob],'words.png',{type:'image/png'});
+      const result=await window.LvxCode.decodeShareCode(await window.LvxDust.readCodeFromImage(blob));
+      return {result,png:poster.toDataURL().split(',')[1]};
+    })()`);
+    assert.equal(decoded.result.mood,description,'the exported PNG carries all 1000 description characters');
+    assert.equal(!!decoded.result.instrumental,instrumental);
+    assert.equal(decoded.result.seed,123456789);
+    assert.equal(decoded.result.scenario,'Get lost');
+    await writeFile(join(shots,instrumental?'words-instrumental.png':'words-vocals.png'),Buffer.from(decoded.png,'base64'));
+  }
+  await read("document.querySelector('#radio-description').select()");
+  await window.webContents.insertText('A different draft before importing');
+  await read(`(()=>{const input=document.querySelector('input[type=file]'),files=new DataTransfer();files.items.add(window.testCodeFile);input.files=files.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await waitFor(()=>read("document.querySelector('#radio-description').value==="+JSON.stringify(description)), 'QR restores the full description');
+  await waitFor(()=>read("document.querySelector('.vocals-control button').getAttribute('aria-pressed')==='false'"), 'QR restores instrumental mode');
+  assert.equal(await read("document.querySelector('#radio-description').disabled"),false,'imported words are enabled');
+  assert.equal(await read("document.querySelector('.words-control button').getAttribute('aria-pressed')"),'true');
+  await capture('words-imported.png');
+
   await window.loadURL(radio.address+'/');
   await waitFor(()=>read("!!document.querySelector('.fm-band')"),'browser layout');
   await read("document.querySelector('[aria-label=Settings]').click()");
@@ -143,7 +169,7 @@ try {
   await read("document.querySelector('.lvx-model-open').click()");
   await capture('settings-browser-music.png');
   assert.equal(errors.length,0,errors.join('\n'));
-  console.log('PASS official UI: three-choice Settings, same-popup submenus and keyboard focus, model license/download/pause/error/ready states, Describe accepts 1000 characters, LVX generation controls hidden, browser and app layouts at 1120×720, live playback and refresh, persisted choices, no renderer errors.');
+  console.log('PASS official UI: three-choice Settings, same-popup submenus and keyboard focus, model license/download/pause/error/ready states, Describe accepts 1000 characters, exported vocals/instrumental QR PNGs decode and restore the description, LVX generation controls hidden, browser and app layouts at 1120×720, live playback and refresh, persisted choices, no renderer errors.');
   console.log('Screenshots: '+shots);
 } catch(error) { console.error(error);if(window)console.error('Renderer errors:',errors);process.exitCode=1; }
 finally { window?.destroy();await radio?.close();host?.closeAllConnections();host?.close();await rm(data,{recursive:true,force:true});app.exit(process.exitCode||0); }

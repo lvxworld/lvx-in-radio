@@ -1,3 +1,4 @@
+@import './generation-control.css';
 .broadcast-layout.air-layout {
   grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
   gap: clamp(28px, 5vw, 72px);
@@ -926,123 +927,6 @@
 }
 
 /* The regenerate switch, small in the bottom-left corner. */
-.songs-power {
-  position: relative;
-  grid-column: 1;
-  align-self: end;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 4px;
-}
-
-.songs-power-dial {
-  position: relative;
-  flex: none;
-  width: 92px;
-  height: 92px;
-}
-
-.songs-power-dial canvas {
-  position: absolute;
-  inset: 0;
-  width: 92px;
-  height: 92px;
-}
-
-.songs-power-dial button {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  margin: -18px 0 0 -18px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.12s, background 0.3s, box-shadow 0.3s;
-}
-
-.songs-power-dial button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.songs-power-dial button:disabled:active {
-  transform: none;
-}
-
-.songs-power-dial button:active {
-  transform: scale(0.92);
-}
-
-.songs-power-dial i {
-  width: 14px;
-  height: 14px;
-  border: 2px solid;
-  border-radius: 50%;
-  transition: border-color 0.3s;
-}
-
-.songs-power-dial b {
-  position: absolute;
-  top: 9px;
-  left: 50%;
-  width: 2px;
-  height: 9px;
-  margin-left: -1px;
-  border-radius: 2px;
-  transition: background 0.3s;
-}
-
-.songs-power-copy {
-  min-width: 0;
-}
-
-.songs-power-copy strong {
-  display: block;
-  font: 600 14px/1.2 'Space Grotesk', sans-serif;
-  transition: color 0.3s;
-}
-
-.songs-power-copy > span {
-  display: block;
-  margin-top: 3px;
-  color: #9b958c;
-  font: 400 11px/1.3 'Space Grotesk', sans-serif;
-  font-variant-numeric: tabular-nums;
-}
-
-.songs-power-tip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  z-index: 30;
-  width: 244px;
-  padding: 10px 13px;
-  border: 1px solid rgba(242, 163, 58, 0.35);
-  border-radius: 12px;
-  background: rgba(22, 20, 18, 0.97);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
-  color: #f3ece2;
-  font: 400 12px/1.45 'Space Grotesk', sans-serif;
-  text-wrap: pretty;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(4px);
-  transition: opacity 0.18s, transform 0.18s;
-}
-
-.songs-power:hover .songs-power-tip,
-.songs-power:has(.songs-power-dial button:focus-visible) .songs-power-tip {
-  opacity: 1;
-  transform: none;
-}
-
 @media (max-width: 960px) {
   .songs-power {
     grid-column: 1;
@@ -1084,37 +968,6 @@
   max-width: none;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.songs-power {
-  gap: 10px;
-}
-
-.songs-power-dial,
-.songs-power-dial canvas {
-  width: 68px;
-  height: 68px;
-}
-
-.songs-power-dial button {
-  width: 28px;
-  height: 28px;
-  margin: -14px 0 0 -14px;
-}
-
-.songs-power-dial i {
-  width: 12px;
-  height: 12px;
-}
-
-.songs-power-dial b {
-  top: 6px;
-  height: 8px;
-}
-
-.songs-power-copy strong {
-  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -1284,23 +1137,6 @@
 }
 
 /* The GPU load: a whisper, only for whoever looks for it. */
-.songs-power-gpu {
-  display: block;
-  height: 12px;
-  margin-top: 2px;
-  color: #6f6a63;
-  font: 500 9px/12px 'JetBrains Mono', monospace;
-  font-variant-numeric: tabular-nums;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.songs-power.is-composing .songs-power-gpu,
-.songs-power:hover .songs-power-gpu {
-  opacity: 1;
-}
-
-
 /* ---------- Share this sound ---------- */
 
 .share-card {
@@ -1597,10 +1433,7 @@ html[data-shell='app'] .setup-window { height:100vh!important; min-height:0!impo
 .air-library { color: #b98a45; font: 500 9px/1 'JetBrains Mono', monospace; letter-spacing: .16em; }
 .air-tags { color: #8a847b; font: 400 8.5px/1 'JetBrains Mono', monospace; letter-spacing: .1em; }
 
-.songs-power-clock { position: relative; flex: none; }
 /* Keep the tooltip above and to the right of the power dial. */
-.songs-power-tip { left: 84px; }
-
 /* Refresh stations: the same outlined pill as New station and Share this sound, with the orbit mark in amber. */
 .broadcast-toolbar .live-refresh { width: auto; height: auto; gap: 7px; padding: 6px 13px 6px 9px; border: 1px solid rgba(255,255,255,.16); background: transparent; box-shadow: none; color: #f3ece2; }
 .broadcast-toolbar .live-refresh:hover:not(:disabled) { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.06); box-shadow: none; }

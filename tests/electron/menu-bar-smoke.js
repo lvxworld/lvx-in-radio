@@ -1,14 +1,14 @@
 // Opt-in native regression test. Run npm run test:menu-bar on macOS.
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { app, BrowserWindow, ipcMain, Tray } from 'electron';
-import { createMenuBar } from '../../src/electron/menu-bar.js';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const root = process.env.LVX_TEST_ROOT ?? resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const { createMenuBar } = await import(pathToFileURL(join(root, 'src/electron/menu-bar.js')));
 const data = mkdtempSync(join(tmpdir(), 'lvx-menu-test-'));
 app.setPath('userData', data);
 app.on('window-all-closed', () => {});
@@ -36,8 +36,10 @@ async function run() {
     menuBar = createMenuBar({ root, getWindow: () => main, quit: () => app.quit() });
     ipcMain.on('radio:playback-state', update);
     await main.loadURL('data:text/html,' + encodeURIComponent(`<!doctype html><title>Test radio</title><body><script>
-      let playing = true;
-      function publish() { window.LvxDesktop.updatePlayback({ playing, available:true, name:'Test station', title:'Test song', frequency:102.2 }); }
+      let playing = true, generationEnabled = true;
+      function publish() { window.LvxDesktop.updatePlayback({ playing, generationAvailable:true, generationEnabled, generation:{visible:true,enabled:generationEnabled,disabled:false,active:false,progress:0,color:'#91b7aa',action:generationEnabled?'Stop regenerating':'Resume regenerating',caption:generationEnabled?'When needed':'Library only',tip:'The same generation control as On air.',gpu:'GPU 42%',composing:false}, available:true, name:'Test station', title:'Test song', frequency:102.2 }); }
+      window.LvxDesktop.onGenerationHover(active => { window.generationHover = active; });
+      window.LvxDesktop.onToggleGeneration(() => { generationEnabled = !generationEnabled; publish(); });
       window.LvxDesktop.onTogglePlay(() => { playing = !playing; publish(); });
       window.LvxDesktop.onVisualsActive(active => { window.visualsActive = active; });
       publish();
@@ -76,6 +78,30 @@ async function run() {
     assert.equal(main.isVisible(), false);
     await read("document.querySelector('#play').click()");
     await waitFor(async () => await read("document.querySelector('#status').textContent") === 'ON AIR');
+    await waitFor(async () => await read("!document.querySelector('#generation-control').hidden"));
+    assert.equal(await read("document.querySelector('#generation-label').textContent"), 'Stop regenerating');
+    const generationLayout = await read(`(()=>{const g=document.querySelector('#generation').getBoundingClientRect(),p=document.querySelector('#play').getBoundingClientRect(),d=document.querySelector('#generation-control .songs-power-dial');return{left:g.right<p.left,button:g.width,dial:d.clientWidth}})()`);
+    assert.deepEqual(generationLayout,{left:true,button:26,dial:36},'the small power switch sits to the left of playback');
+    assert.equal(await read("document.querySelector('#generation-control canvas')===null"),true,'the mini player has no outer generation crown');
+    await read("document.querySelector('#generation').focus()");
+    await waitFor(async () => await main.webContents.executeJavaScript('window.generationHover===true'));
+    await waitFor(async () => await read("getComputedStyle(document.querySelector('#songs-power-tip')).opacity==='1'"));
+    assert.equal(await read("document.querySelector('#generation-caption').textContent"),'When needed');
+    assert.equal(await read("document.querySelector('#generation-gpu').textContent"),'GPU 42%');
+    await read("document.querySelector('#generation').blur()");
+    await waitFor(async () => await main.webContents.executeJavaScript('window.generationHover===false'));
+    ipcMain.emit('radio:menu-action', { sender: main.webContents }, 'toggle-generation');
+    await delay(50);
+    assert.equal(await read("document.querySelector('#generation').getAttribute('aria-pressed')"), 'true', 'unrelated senders cannot stop generation');
+    await read("document.querySelector('#generation').click()");
+    await waitFor(async () => await read("document.querySelector('#generation-label').textContent") === 'Resume regenerating');
+    assert.equal(await read("document.querySelector('#status').textContent"), 'ON AIR', 'stopping generation keeps playback running');
+    await delay(200);
+    writeFileSync('/private/tmp/lvx-mini-generation-off.png', (await panel.webContents.capturePage()).toPNG());
+    await read("document.querySelector('#generation').click()");
+    await waitFor(async () => await read("document.querySelector('#generation-label').textContent") === 'Stop regenerating');
+    await delay(200);
+    writeFileSync('/private/tmp/lvx-mini-generation-on.png', (await panel.webContents.capturePage()).toPNG());
     // Main-window and unrelated senders cannot use the mini-player control channel.
     ipcMain.emit('radio:menu-action', { sender: main.webContents }, 'open');
     assert.equal(main.isVisible(), false);
@@ -114,7 +140,8 @@ async function run() {
     menuBar.update({ playing: false, available: false, name: 'Empty station' });
     nativeTray.emit('click');
     await waitFor(async () => await read("document.querySelector('#play').disabled"));
-    await read('window.LvxMini.togglePlay()');
+    await waitFor(async () => await read("document.querySelector('#generation-control').hidden"));
+    await read('window.LvxMini.toggleGeneration();window.LvxMini.togglePlay()');
     await delay(50);
     assert.equal(await read("document.querySelector('#status').textContent"), 'READY');
     nativeTray.emit('right-click');
@@ -125,7 +152,7 @@ async function run() {
     menuBar.destroy(); menuBar = null;
     assert.equal(panel.isDestroyed(), true);
     assert.equal(ipcMain.listenerCount('radio:menu-action'), 0);
-    console.log('PASS native mini player: centered semicircle and controls, real spectrum response, validated levels, visible-only animation, compact mode, blur, Play/Stop, menu bar, restoration, IPC ownership, cleanup.');
+    console.log('PASS native mini player: centered semicircle and controls, real spectrum response, validated levels, visible-only animation, compact mode, blur, Play/Stop, Stop/Resume generation without stopping playback, menu bar, restoration, IPC ownership, cleanup.');
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

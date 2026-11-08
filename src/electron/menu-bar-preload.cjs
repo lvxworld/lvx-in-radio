@@ -1,8 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// The mini player can only control playback and restore its owning radio.
+// The mini player controls playback and generation through its owning radio.
 contextBridge.exposeInMainWorld('LvxMini', {
   togglePlay: () => ipcRenderer.send('radio:menu-action', 'toggle-play'),
+  toggleGeneration: () => ipcRenderer.send('radio:menu-action', 'toggle-generation'),
+  generationHover: active => ipcRenderer.send('radio:menu-action', active === true ? 'generation-enter' : 'generation-leave'),
   open: () => ipcRenderer.send('radio:menu-action', 'open'),
   hide: () => ipcRenderer.send('radio:menu-action', 'hide'),
   toTray: () => ipcRenderer.send('radio:menu-action', 'tray'),
