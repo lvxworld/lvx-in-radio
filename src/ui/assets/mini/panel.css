@@ -47,3 +47,13 @@ button:focus-visible { outline: 2px solid #f2a33a; outline-offset: 4px; }
 .is-playing #play { animation: play-breathe 3.6s ease-in-out infinite; }
 @keyframes play-breathe { 0%, 100% { box-shadow: 0 0 14px #f2a33a22; } 50% { box-shadow: 0 0 26px #f2a33a66; } }
 @media (prefers-reduced-motion: reduce) { .is-playing #play { animation: none; } }
+
+#generation-control { position:absolute; left:28px; bottom:64px; margin:0; }
+#generation-control[hidden] { display:none; }
+#generation-control .songs-power-tip { left:0; bottom:calc(100% + 8px); }
+#generation-control .songs-power-tip p { margin:8px 0 0; }
+#generation-gpu { position:absolute; top:100%; left:0; width:36px; margin-top:4px; text-align:center; }
+#generation-control:has(button:focus-visible) .songs-power-gpu { opacity:1; }
+
+#generation-control .songs-power-dial { width:36px; height:36px; }
+#generation-control .songs-power-dial button { width:26px; height:26px; margin:-13px 0 0 -13px; }

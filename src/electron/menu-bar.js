@@ -89,6 +89,8 @@ export function createMenuBar({ root, getWindow, quit }) {
     if (!panel || event.sender !== panel.webContents) return;
     if (command === 'state') publish();
     else if (command === 'toggle-play') togglePlay();
+    else if (command === 'toggle-generation' && playback.generationAvailable) getWindow()?.webContents.send('radio:toggle-generation');
+    else if (command === 'generation-enter' || command === 'generation-leave') getWindow()?.webContents.send('radio:generation-hover', command === 'generation-enter');
     else if (command === 'open') show();
     else if (command === 'hide' || command === 'tray') { hidePanel(); mode = 'tray'; }
   };
@@ -116,7 +118,16 @@ export function createMenuBar({ root, getWindow, quit }) {
       });
     },
     update(state) {
+      const generation = state.generation;
       playback = {
+        generation: generation && typeof generation === 'object' ? {
+          visible:generation.visible === true, enabled:generation.enabled === true, disabled:generation.disabled !== false,
+          active:generation.active === true, composing:generation.composing === true,
+          progress:Number.isFinite(generation.progress) ? Math.max(0,Math.min(100,generation.progress)) : 0,
+          color:typeof generation.color === 'string' && /^#[0-9a-f]{6}$/i.test(generation.color) ? generation.color : '#f2a33a',
+          ...Object.fromEntries(['action','caption','tip','gpu'].map(key => [key, typeof generation[key] === 'string' ? generation[key].slice(0,600) : ''])),
+        } : null,
+        generationAvailable: state.generationAvailable === true, generationEnabled: state.generationEnabled === true,
         playing: state.playing === true, available: state.available === true,
         name: typeof state.name === 'string' ? state.name.slice(0, 80) : '',
         title: typeof state.title === 'string' ? state.title.slice(0, 160) : '',

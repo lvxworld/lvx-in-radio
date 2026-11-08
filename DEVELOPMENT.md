@@ -14,13 +14,18 @@ If the Homebrew `node` is broken, use Node 24 directly:
 ```sh
 npm ci
 npm test              # fake engine, no GPU or model needed
-npm run test:live-ui  # Electron renderer: settings, Describe, Live playback; no model needed
+npm run test:menu-bar # Native mini player, playback and generation controls; no model needed
+npm run test:live-ui  # Electron renderer: settings, Describe, QR PNG round-trip, Live playback; no model needed
 npm start             # browser UI at http://127.0.0.1:8787
 npm run fetch-engine  # pinned audio.cpp release, checksum verified
 npm run app           # Electron from source
 npm run dist          # build the arm64 DMG in dist/
 npm run fresh         # copy from the DMG and launch with empty temporary data
 ```
+
+`npm run test:menu-bar` can also check the packaged UI and IPC by setting
+`LVX_TEST_ROOT="$PWD/dist/mac-arm64/LVX in Radio.app/Contents/Resources/app.asar"`.
+It uses temporary data and does not load models.
 
 `npm run fresh` prints its temporary folder. It leaves your normal `.data/` and
 Application Support untouched. The packaged app only looks inside that temporary

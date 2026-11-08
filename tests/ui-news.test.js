@@ -1,3 +1,4 @@
+import * as LvxGeneration from '../src/ui/assets/generation-control.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
@@ -19,7 +20,7 @@ function view() {
     Audio: class { constructor() { this.listeners = {}; } addEventListener() {} pause() {} play() { return Promise.resolve(); } },
     React: { createRef: () => ({ current: null }) },
     DCLogic: class { props = {}; },
-    window: { LvxRadio: { post: async (path, body) => { posts.push([path, body]); return {}; } }, LvxNewsFlow: { nextNewsAction, currentStory, newsCaption } },
+    window: { LvxGeneration, LvxRadio: { post: async (path, body) => { posts.push([path, body]); return {}; } }, LvxNewsFlow: { nextNewsAction, currentStory, newsCaption } },
   });
   vm.runInContext(source + ';globalThis.component = new Component()', context);
   const component = context.component;

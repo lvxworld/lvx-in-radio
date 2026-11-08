@@ -20,6 +20,12 @@ window.LvxMini.onState(state => {
 });
 
 play.addEventListener('click', () => window.LvxMini.togglePlay());
+byId('generation').addEventListener('click', () => window.LvxMini.toggleGeneration());
+const hover = active => window.LvxMini.generationHover(active);
+byId('generation-control').addEventListener('pointerenter', () => hover(true));
+byId('generation-control').addEventListener('pointerleave', () => hover(false));
+byId('generation').addEventListener('focus', () => hover(true));
+byId('generation').addEventListener('blur', () => hover(false));
 byId('open').addEventListener('click', () => window.LvxMini.open());
 byId('tray').addEventListener('click', () => window.LvxMini.toTray());
 document.addEventListener('keydown', event => {

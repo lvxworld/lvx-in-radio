@@ -1,12 +1,9 @@
-LVX in Radio v0.1.10 adds **Lux in Tenebris** (daily AI news) as a third default source for **LVX News** (new since v0.1.5), the hourly news bulletin read aloud on your Mac. News now also picks the newest stories of every feed whatever its order, and reads the dates of Italian feeds.
+LVX in Radio v0.1.11 improves station sharing and adds generation controls to the mini player.
 
-- A small **NEWS** chip beside ON AIR turns it on. Every hour the app makes a short bulletin of up to five stories, read by Qwen3-TTS (voice Ryan) over a quiet music bed that rises only between stories. Production starts about ten minutes before the hour and never interrupts a song that is composing.
-- When a bulletin is ready, a "The news is ready" card asks **Listen** or **Later**. **Listen to the last bulletin** replays the latest one before the next replaces it, and **Make one now** reads the feeds again and makes a new one. The News marker on the dial plays it too.
-- **Settings → News** lists the sources: BBC World, NPR and Lux in Tenebris can be switched off, and you can add your own RSS or Atom feeds (https), in English or Italian. Each story is read in its feed's language.
-- The news voice is a separate one-time download of 4.5 GB (Apache-2.0), installed from **Settings → News**. After that it works offline, and the voice is synthetic.
-- On your own stations the frequency number flips to a small Share code two seconds after you arrive, and whenever the pointer is on it.
-- On a fresh install the app reuses the YuE2 and news voice weights if they are already in your Hugging Face cache (`~/.cache/huggingface/hub`), after checking them, so nothing is downloaded twice. Thanks to Ivan Fioravanti.
-- Other changes: the NEWS chip sits beside ON AIR, and the "Drag the dial" caption is gone.
+- **QR codes carry your words.** Sharing a station includes the active text from **Describe it in words**. Opening the picture restores the description and enables it, together with the other station settings and the original first-song seed.
+- **Long descriptions fit too.** Codes with longer text use compact encoding, tested with 1000 characters and both vocals and instrumental settings. Existing QR codes still open. To open the new compact codes, the recipient needs v0.1.11 or later.
+- **Share the station you are listening to.** Sharing from On air uses that station’s saved settings, even if Create contains a different draft.
+- **Stop or resume generating from the mini player.** A small power button at the bottom left uses the same colours, hints and generation control as On air, without the outer crown. Stopping generation keeps your library playing. The control reflects the current station and is disabled when its music model is unavailable.
 
 1. Download the DMG and drag **LVX in Radio** into Applications.
 2. Open it. macOS blocks it the first time because the app is not notarized: go to **System Settings → Privacy & Security → Open Anyway**, then confirm.

@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('LvxDesktop', {
   hideToTray: () => ipcRenderer.send('radio:hide'),
   openMiniPlayer: () => ipcRenderer.send('radio:mini'),
   updatePlayback: (state) => ipcRenderer.send('radio:playback-state', {
+    generation: state?.generation,
+    generationAvailable: state?.generationAvailable === true, generationEnabled: state?.generationEnabled === true,
     playing: state?.playing === true, available: state?.available === true,
     name: typeof state?.name === 'string' ? state.name.slice(0, 80) : '',
     title: typeof state?.title === 'string' ? state.title.slice(0, 160) : '',
@@ -26,6 +28,16 @@ contextBridge.exposeInMainWorld('LvxDesktop', {
     const listener = () => callback();
     ipcRenderer.on('radio:toggle-play', listener);
     return () => ipcRenderer.removeListener('radio:toggle-play', listener);
+  },
+  onGenerationHover: (callback) => {
+    const listener = (_event, active) => callback(active === true);
+    ipcRenderer.on('radio:generation-hover', listener);
+    return () => ipcRenderer.removeListener('radio:generation-hover', listener);
+  },
+  onToggleGeneration: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('radio:toggle-generation', listener);
+    return () => ipcRenderer.removeListener('radio:toggle-generation', listener);
   },
   chooseModelFolder: (accepted) => ipcRenderer.invoke('radio:choose-model', accepted === true),
 });

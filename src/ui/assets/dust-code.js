@@ -8,7 +8,7 @@ const GROUND = '#0d0c0b';
 const QUIET_MODULES = 4;
 const CODE_SHARE = 0.62;
 const CORE_SHARE = 0.5;
-const CORE_ALPHA = 0.62;
+const CORE_ALPHA = 0.85;
 const GRAINS_PER_MODULE = 16;
 const NEBULA_PUFFS = 220;
 const MOVING_PER_MODULE = 3;
@@ -24,7 +24,7 @@ const RING_REACH = 0.47;
 const POSTER_RADIUS = 72;
 const logoSymbol = new Image();
 logoSymbol.src = 'assets/logo-symbol.png';
-const READ_SIZES = [700, 500, 1000, 340];
+const READ_SIZES = [1280, 700, 500, 1000, 340];
 const READ_THRESHOLDS = [70, 100, 45, 130];
 
 function random(seed) {

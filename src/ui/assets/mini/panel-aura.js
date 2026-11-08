@@ -1,5 +1,6 @@
 import { StationAura } from '../station-aura.js';
 import { drawStationDial } from '../station-dial.js';
+import { generationAppearance } from '../generation-control.js';
 
 // Playback stays in the main renderer; its real levels also drive the small face.
 const canvas = document.getElementById('aura');
@@ -9,6 +10,8 @@ let colors = ['#f2a33a'];
 let time = 0;
 let receivedAt = performance.now();
 let aura = null;
+let generation = null;
+const byId = id => document.getElementById(id);
 
 try {
   aura = new StationAura(canvas, {
@@ -20,6 +23,26 @@ try {
 }
 
 window.LvxMini.onState(state => {
+  generation = state.generation;
+  const control = byId('generation-control'), button = byId('generation');
+  control.hidden = !generation?.visible;
+  if (generation?.visible) {
+    control.classList.toggle('is-composing', generation.composing);
+    button.disabled = generation.disabled;
+    button.setAttribute('aria-label', generation.action);
+    button.setAttribute('aria-pressed', String(generation.enabled));
+    const appearance = generationAppearance(generation.enabled, generation.color);
+    button.style.background = appearance.genBg;
+    button.style.boxShadow = appearance.genShadow;
+    button.querySelector('i').style.borderColor = appearance.genIcon;
+    button.querySelector('i').style.borderTopColor = 'transparent';
+    button.querySelector('b').style.background = appearance.genIcon;
+    byId('generation-label').style.color = appearance.genColor;
+    byId('generation-label').textContent = generation.action;
+    byId('generation-caption').textContent = generation.caption;
+    byId('generation-tip').textContent = generation.tip;
+    byId('generation-gpu').textContent = generation.gpu;
+  }
   if (state.colors?.length) {
     colors = state.colors;
     aura?.setColors(colors);
