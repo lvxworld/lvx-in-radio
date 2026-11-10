@@ -811,7 +811,7 @@ class Component extends DCLogic {
   nameFor(k){const station=this.state.stations[k];if(station)return station.name;if(k===6)return this.baseName();const L=this.NAMES.length;const bi=Math.max(0,this.NAMES.indexOf(this.baseName()))+this.state.scen;return this.NAMES[(((bi+k-6)%L)+L)%L]}
   quoteFor(k){const station=this.state.stations[k];if(station)return station.quote;if(k===6)return this.state.prompt;const L=this.QUOTES.length;return this.QUOTES[((k%L)+L)%L]}
   freqOf(k){return 87.8+k*.8}
-  toastMsg(t){clearTimeout(this.toastT);this.setState({toast:null},()=>this.setState({toast:t}));this.toastT=setTimeout(()=>this.setState({toast:null}),2300)}
+  toastMsg(t){clearTimeout(this.toastT);this.setState({toast:null},()=>this.setState({toast:t}));this.toastT=setTimeout(()=>this.setState({toast:null}),6000)}
   fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
 
   // ---------- audio ----------
@@ -1303,7 +1303,10 @@ class Component extends DCLogic {
     const s=this.state,names=s.dnaSlots.filter(k=>k&&s.sel[k]!=null);
     if(names.length<2||!names.includes(name)||!Number.isFinite(value))return;
     const pct=Math.round(Math.max(0,Math.min(100,value))),others=names.filter(k=>k!==name);
-    this.setState({sel:{...this.allocateMix(others,100-pct,s.sel),[name]:pct}});
+    const sel={...this.allocateMix(others,100-pct,s.sel),[name]:pct};
+    const kept=names.filter(k=>sel[k]>0);
+    const dnaSlots=s.dnaSlots.map(k=>k&&sel[k]>0?k:null);
+    this.setState({sel:Object.fromEntries(kept.map(k=>[k,sel[k]])),dnaSlots});
   }
   mixPercents(){const s=this.state;return this.allocateMix(s.dnaSlots.filter(name=>name&&s.sel[name]!=null),100,s.sel)}
   dnaPanelRows(){const s=this.state,count=Object.keys(s.sel).length,percentages=this.mixPercents();

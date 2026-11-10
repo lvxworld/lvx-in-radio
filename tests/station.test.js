@@ -21,7 +21,7 @@ import { RadioStation } from '../src/radio/station.js';
 import { StationStore } from '../src/radio/stations.js';
 import { decodeCode, encodeCode } from '../src/ui/assets/lvx-code.js';
 import { answerFrom, createDeck, tempoFromTaps } from '../src/ui/assets/signal-game.js';
-import { buildStyle, GENRES } from '../src/radio/style.js';
+import { buildStyle, GENRES, validateConfig } from '../src/radio/style.js';
 import { createApp, listen } from '../src/server/app.js';
 
 const config = { mix: { Jazz: 30, 'Lo-fi': 70 }, energy: 25, bpm: 80, dark: 30, melody: true, mood: 'Sunday light' };
@@ -273,6 +273,11 @@ test('tune sends a Direct instrumental request with a length cap', async () => {
 test('invalid configuration is refused before any generation', async () => {
   await assert.rejects(station.tune({ ...config, mix: { Polka: 100 } }), TypeError);
   assert.equal(engine.requests.length, 0);
+});
+
+test('a single genre at 100% is accepted and a zero-weight genre is refused', () => {
+  assert.doesNotThrow(() => validateConfig({ ...config, mix: { Country: 100 } }));
+  assert.throws(() => validateConfig({ ...config, mix: { Country: 100, Jazz: 0 } }), TypeError);
 });
 
 test('a finished song records its real duration and truncation', async () => {
