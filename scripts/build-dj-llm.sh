@@ -18,45 +18,9 @@ TARGET="$ROOT/vendor/dj-llm"
 WORK="${LVX_DJ_LLM_BUILD_DIR:-$HOME/.lvx-dev/dj-llm-build}"
 STAGE="$WORK/stage"
 
-# Exactly what the tested dev venv runs (mlx-lm 0.32.2 and its dependency closure).
-REQUIREMENTS='annotated-doc==0.0.6
-annotated-types==0.8.0
-anyio==4.16.0
-click==8.5.1
-filelock==4.2.10
-fsspec==2026.9.0
-h11==0.16.0
-hf-xet==1.8.0
-httpcore2==2.16.0
-httpx2==2.16.0
-huggingface-hub==2.4.0
-idna==3.20
-jinja2==3.1.6
-markdown-it-py==4.3.0
-markupsafe==3.0.4
-mdurl==0.1.2
-mlx==0.32.4
-mlx-lm==0.32.2
-mlx-metal==0.32.4
-numpy==2.5.4
-packaging==26.3
-protobuf==7.36.2
-pydantic==2.14.3
-pydantic-core==2.50.4
-pygments==2.21.0
-pyyaml==6.0.3
-regex==2026.11.9
-rich==15.0.0
-safetensors==0.8.0
-sentencepiece==0.2.3
-shellingham==1.5.4
-tokenizers==0.23.3
-tqdm==4.70.1
-transformers==5.22.2
-truststore==0.10.5
-typer==0.29.1
-typing-extensions==4.16.0
-typing-inspection==0.4.5'
+# Pinned with hashes in scripts/dj-llm/requirements.txt, compiled from requirements.in
+# (see AGENTS.md, "DJ writer runtime").
+REQUIREMENTS="$ROOT/scripts/dj-llm/requirements.txt"
 
 mkdir -p "$WORK"
 ARCHIVE="$WORK/$PBS_FILE"
@@ -71,13 +35,12 @@ DIGEST=$(shasum -a 256 "$ARCHIVE" | cut -d' ' -f1)
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 tar xzf "$ARCHIVE" -C "$STAGE"   # -> $STAGE/python
 PY="$STAGE/python/bin/python3.12"
-printf '%s\n' "$REQUIREMENTS" > "$WORK/requirements.txt"
-# --no-deps: the list above is the full closure, so nothing unpinned can slip in.
+# --require-hashes and --no-deps: the lock is the full closure and every wheel must match its hash.
 # --platform: the oldest macOS mlx publishes wheels for, whatever Mac builds this, so the
 # bundle is the same on CI and runs on macOS 14 and later (pip otherwise picks the newest tag).
 env -i PATH=/usr/bin:/bin HOME="$HOME" "$PY" -I -m pip install -q --disable-pip-version-check --no-cache-dir \
   --no-deps --only-binary :all: --platform "$MAC_PLATFORM" --target "$STAGE/python/lib/python3.12/site-packages" \
-  --no-compile --index-url https://pypi.org/simple -r "$WORK/requirements.txt"
+  --no-compile --require-hashes --index-url https://pypi.org/simple -r "$REQUIREMENTS"
 rm -rf "$STAGE/python/lib/python3.12/site-packages/bin"
 env -i PATH=/usr/bin:/bin "$PY" -I -m pip check
 
@@ -114,7 +77,7 @@ DJ script writer for LVX in Radio, built by scripts/build-dj-llm.sh.
 Python: $PBS_URL (sha256 $PBS_SHA256), license in python/lib/python3.12/LICENSE.txt.
 Packages (PyPI wheels): see requirements.txt. mlx and mlx-lm are MIT licensed.
 EOF
-cp "$WORK/requirements.txt" "$STAGE/requirements.txt"
+cp "$REQUIREMENTS" "$STAGE/requirements.txt"
 
 # Self-containment: nothing may point at the build machine, Homebrew or a venv.
 if grep -rIl -e "$HOME" -e "$WORK" "$STAGE" | grep -v '\.pyc$' | head -5 | grep . ; then
