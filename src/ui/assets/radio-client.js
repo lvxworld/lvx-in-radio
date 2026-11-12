@@ -7,8 +7,10 @@ window.LvxRadio = {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      const { error } = await response.json();
-      throw new Error(error);
+      const failure = await response.json().catch(() => ({}));
+      const error = new Error(failure.error || 'The request failed');
+      error.status = response.status; error.body = failure;   // a refusal may carry a machine-readable reason
+      throw error;
     }
     return response.json();
   },

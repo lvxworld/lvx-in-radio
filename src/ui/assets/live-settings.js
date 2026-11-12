@@ -1,7 +1,8 @@
 /** Settings presentation only. Main-process API/SSE owns every saved setting. */
 window.LvxLiveSettings = class {
-  constructor({ onChange, onModel, onListen, getModel }) {
+  constructor({ onChange, onModel, onListen, getModel, onDjPreview = () => {}, onDjChange = () => {}, onDjNotice = () => {}, onDjPending = () => {} }) {
     this.onChange = onChange; this.onModel = onModel; this.onListen = onListen; this.getModel = getModel;
+    this.onDjPreview = onDjPreview; this.onDjChange = onDjChange; this.onDjNotice = onDjNotice; this.onDjPending = onDjPending;
     this.dialog = document.createElement('dialog');
     this.dialog.className = 'lvx-settings';
     this.dialog.setAttribute('aria-labelledby', 'lvx-settings-title');
@@ -23,6 +24,7 @@ window.LvxLiveSettings = class {
             <button class="lvx-live-open lvx-settings-option" type="button"><span>LVX Live stations</span><span aria-hidden="true">›</span></button>
             <button class="lvx-model-open lvx-settings-option" type="button"><span>Music setup</span><span aria-hidden="true">›</span></button>
             <button class="lvx-voice-open lvx-settings-option" type="button"><span>News</span><span aria-hidden="true">›</span></button>
+            <button class="lvx-dj-open lvx-settings-option" type="button"><span>DJs</span><span aria-hidden="true">›</span></button>
           </div>
           <div class="lvx-settings-live" hidden>
           <div class="lvx-live-power-row"><button type="button" class="lvx-live-power" aria-label="LVX Live stations" aria-pressed="false"><i></i><b></b></button><div><strong>LVX Live stations</strong><p>Stream new songs. Discover new stations.</p></div><span class="lvx-live-state">OFF</span></div>
@@ -48,6 +50,34 @@ window.LvxLiveSettings = class {
             <div class="lvx-voice-actions">
               <button class="lvx-voice-download lvx-settings-primary" type="button">Download voice</button>
               <button class="lvx-voice-pause lvx-settings-secondary" type="button" hidden>Pause</button>
+            </div>
+          </div>
+          <div class="lvx-settings-dj" hidden>
+            <div class="lvx-live-power-row"><button type="button" class="lvx-live-power lvx-dj-power" aria-label="DJs" aria-pressed="false"><i></i><b></b></button><div><strong>DJs</strong><p class="lvx-dj-caption">A voice introduces the next song now and then. It runs on your Mac.</p></div><span class="lvx-live-state lvx-dj-state">OFF</span></div>
+            <p class="lvx-dj-error lvx-voice-error" role="alert" hidden></p>
+            <h2 class="lvx-news-heading" title="Pick each station's DJ from its DJ button on air.">The DJs <span class="lvx-dj-hint">pick one from the DJ button on air</span></h2>
+            <div class="lvx-dj-list"></div>
+            <div class="lvx-dj-setup">
+              <section>
+            <h2 class="lvx-news-heading">How often</h2>
+            <div class="lvx-dj-frequency"><label>Every <select class="lvx-dj-min" aria-label="At least this many songs between DJ lines"><option>1</option><option>2</option><option>3</option><option>4</option></select></label><label>to <select class="lvx-dj-max" aria-label="At most this many songs between DJ lines"><option>1</option><option>2</option><option>3</option><option>4</option></select> songs</label></div>
+            <p class="lvx-settings-note">Picked at random per station. Never right after you tune in.</p>
+              </section>
+              <section>
+            <h2 class="lvx-news-heading">Script model</h2>
+            <p class="lvx-dj-model-status lvx-settings-kicker" role="status" aria-live="polite"></p>
+            <p class="lvx-voice-intro" title="If it cannot run, the DJ falls back to simple lines.">Qwen3.5-4B writes the DJ's lines on your Mac.</p>
+            <div class="setup-progress lvx-dj-model-progress" role="progressbar" aria-label="Script model download" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+            <p class="lvx-dj-model-detail lvx-voice-detail"></p>
+            <p class="lvx-dj-model-error lvx-voice-error" role="alert" hidden></p>
+            <div class="lvx-voice-actions"><button class="lvx-dj-model-download lvx-settings-primary" type="button">Download script model</button><button class="lvx-dj-model-choose lvx-settings-secondary" type="button" hidden>I already have it</button><button class="lvx-dj-model-pause lvx-settings-secondary" type="button" hidden>Pause</button></div>
+              </section>
+              <section>
+            <h2 class="lvx-news-heading">Voice</h2>
+            <p class="lvx-dj-voice-status lvx-settings-kicker" role="status" aria-live="polite"></p>
+            <p class="lvx-dj-voice-detail lvx-voice-detail"></p>
+            <div class="lvx-voice-actions"><button class="lvx-dj-voice-download lvx-settings-primary" type="button" hidden>Download voice</button></div>
+              </section>
             </div>
           </div>
           <div class="lvx-settings-music" hidden>
@@ -83,11 +113,19 @@ window.LvxLiveSettings = class {
     this.find('.lvx-live-open').addEventListener('click', () => this.showPage('live'));
     this.find('.lvx-model-open').addEventListener('click', () => { this.showPage('music'); this.onModel(); });
     this.find('.lvx-voice-open').addEventListener('click', () => this.showPage('voice'));
+    this.find('.lvx-dj-open').addEventListener('click', () => this.showPage('dj'));
+    this.find('.lvx-dj-power').addEventListener('click', () => void this.djSetting({ enabled: !this.djValue?.enabled }));
+    this.find('.lvx-dj-min').addEventListener('change', event => void this.djRange('min', event.target.value));
+    this.find('.lvx-dj-max').addEventListener('change', event => void this.djRange('max', event.target.value));
+    this.find('.lvx-dj-model-download').addEventListener('click', () => void this.djModelAction('download'));
+    this.find('.lvx-dj-model-pause').addEventListener('click', () => void this.djModelAction('pause'));
+    this.find('.lvx-dj-model-choose').addEventListener('click', () => void this.djChooseFolder());
+    this.find('.lvx-dj-voice-download').addEventListener('click', () => void this.djVoiceDownload());
     this.find('.lvx-feed-add-button').addEventListener('click', () => void this.addFeed());
     this.find('.lvx-feed-url').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); void this.addFeed(); } });
     this.find('.lvx-voice-download').addEventListener('click', () => void this.voiceAction('download'));
     this.find('.lvx-voice-pause').addEventListener('click', () => void this.voiceAction('pause'));
-    this.dialog.addEventListener('close', () => this.stopVoicePoll());
+    this.dialog.addEventListener('close', () => { this.stopVoicePoll(); this.stopDjPoll(); });
     for (const [name, action] of Object.entries({ download:'setupDownload', choose:'setupChoose', pause:'setupPause', retry:'setupRetry', continue:'setupContinue' })) {
       this.find(`.lvx-model-${name}`).addEventListener('click', () => { if (name === 'continue') this.dialog.close(); this.modelValues?.[action](); });
     }
@@ -125,18 +163,21 @@ window.LvxLiveSettings = class {
   showPage(page, focus = true) {
     const previous = this.page;
     this.page = page;
+    this.dialog.dataset.page = page;
     this.find('.lvx-settings-menu').hidden = page !== 'menu';
     this.find('.lvx-settings-live').hidden = page !== 'live';
     this.find('.lvx-settings-music').hidden = page !== 'music';
     this.find('.lvx-settings-voice').hidden = page !== 'voice';
+    this.find('.lvx-settings-dj').hidden = page !== 'dj';
     this.find('.lvx-settings-back').hidden = page === 'menu';
-    this.find('#lvx-settings-heading').textContent = page === 'live' ? 'LVX Live stations' : page === 'music' ? 'Music setup' : page === 'voice' ? 'News' : 'Settings';
+    this.find('#lvx-settings-heading').textContent = page === 'live' ? 'LVX Live stations' : page === 'music' ? 'Music setup' : page === 'voice' ? 'News' : page === 'dj' ? 'DJs' : 'Settings';
     this.error('');
     if (page === 'music') this.updateModel(this.getModel());
     if (page === 'voice') this.startVoicePoll(); else this.stopVoicePoll();
+    if (page === 'dj') this.startDjPoll(); else this.stopDjPoll();
     this.dialog.scrollTop = 0;
     if (focus) {
-      const target = page === 'menu' ? previous === 'music' ? '.lvx-model-open' : previous === 'voice' ? '.lvx-voice-open' : '.lvx-live-open' : '#lvx-settings-heading';
+      const target = page === 'menu' ? previous === 'music' ? '.lvx-model-open' : previous === 'voice' ? '.lvx-voice-open' : previous === 'dj' ? '.lvx-dj-open' : '.lvx-live-open' : '#lvx-settings-heading';
       this.find(target).focus();
     }
   }
@@ -171,7 +212,7 @@ window.LvxLiveSettings = class {
     setText('.lvx-model-download', values.setupDownloadLabel);
   }
 
-  /** Opens Settings on one page ('live', 'music' or 'voice'); the menu bar of the app calls it. */
+  /** Opens Settings on one page ('live', 'music', 'voice' or 'dj'); the menu bar of the app calls it. */
   openPage(page) { this.open(); this.showPage(page, false); if (page === 'music') this.onModel(); }
 
   startVoicePoll() {
@@ -251,6 +292,152 @@ window.LvxLiveSettings = class {
     setText('.lvx-voice-download', voice.bytes > 0 ? 'Resume download' : 'Download voice');
   }
 
+
+  // ---------- DJs ----------
+  startDjPoll() {
+    this.stopDjPoll();
+    const tick = async () => {
+      try {
+        const [dj, model, voice] = await Promise.all([fetch('/api/dj').then(r => r.json()), fetch('/api/dj/model').then(r => r.json()), fetch('/api/news/voice').then(r => r.json()).catch(() => null)]);
+        this.djValue = dj; this.djModelValue = model; this.djVoiceValue = voice;
+        if (!this.djCatalog) this.djCatalog = await (await fetch('/api/dj/catalog')).json();
+        this.onDjChange(dj, this.djCatalog);
+        this.renderDj();
+      } catch { /* the next tick tries again */ }
+    };
+    void tick();
+    this.djTimer = setInterval(tick, 1000);
+  }
+
+  stopDjPoll() { clearInterval(this.djTimer); this.djTimer = null; }
+
+  /** Inline on the DJs page; a toast anywhere else (the popover's Hear button), so a failure is never silent. */
+  djError(text) {
+    const node = this.dialog.querySelector('.lvx-dj-error');
+    if (node) { node.textContent = text || ''; node.hidden = !text; }
+    if (text && (!this.dialog.open || this.page !== 'dj')) this.onDjNotice(text);
+  }
+
+  djSettle() { clearTimeout(this.djWatch); this.djWatch = null; if (this.djPending) { this.djPending = null; this.onDjPending(null); } }
+
+  async djSetting(body) {
+    this.djError('');
+    try { this.djValue = await window.LvxRadio.post('/api/dj/settings', body); this.renderDj(); }
+    catch (error) { this.djError(error.message); }
+  }
+
+  async djRange(changed, value) {
+    const flow = window.LvxDjFlow, dj = this.djValue ?? {};
+    await this.djSetting(flow.nextRange({ min: dj.minSongs ?? 2, max: dj.maxSongs ?? 4 }, changed, value));
+  }
+
+  async djModelAction(name) {
+    this.djError('');
+    try { this.djModelValue = await window.LvxRadio.post(name === 'pause' ? '/api/dj/model/pause' : '/api/dj/model/download', {}); this.renderDj(); }
+    catch (error) { this.djError(error.message); }
+  }
+
+  /** The native folder dialog exists only in the desktop app; in a browser the button stays hidden. */
+  async djChooseFolder() {
+    this.djError('');
+    try {
+      const path = await window.LvxDesktop?.chooseDjModelFolder?.();
+      if (!path) return;
+      this.djModelValue = await window.LvxRadio.post('/api/dj/model/folder', { path }); this.renderDj();
+    } catch (error) { this.djError(error.message); }
+  }
+
+  async djVoiceDownload() {
+    this.djError('');
+    try { await window.LvxRadio.post('/api/news/voice/download', {}); } catch (error) { this.djError(error.message); }
+  }
+
+  /** The app passes each snapshot's `dj` block here; it carries the audition's progress. */
+  updateDj(snapshot) {
+    this.djSnapshot = snapshot;
+    const pending = this.djPending, preview = snapshot?.preview;
+    // Only the sample this click asked for counts: an older ready or error in the snapshot is not its answer.
+    const mine = pending && preview && preview.id !== this.djBaseline && (!this.djRequestId || preview.id === this.djRequestId);
+    if (mine && preview.status === 'ready' && preview.audioId && this.djPlayed !== preview.id) {
+      this.djPlayed = preview.id; this.onDjPreview({ audioId: preview.audioId, djId: pending, style: this.djPendingStyle });
+    }
+    if (mine && preview.status === 'ready') this.djSettle();
+    else if (mine && preview.status === 'error') { const text = preview.error || 'The sample could not be made.'; this.djSettle(); this.djError(text); }
+    if (this.page === 'dj') this.renderDj();
+  }
+
+  async djAudition(dj) {
+    const flow = window.LvxDjFlow;
+    this.djError('');
+    this.djPending = dj.id; this.djPendingStyle = flow.previewStyle(dj, this.djCatalog?.styles);
+    this.djBaseline = this.djSnapshot?.preview?.id ?? null; this.djRequestId = null;
+    this.onDjPending(dj.id);
+    clearTimeout(this.djWatch);
+    this.djWatch = setTimeout(() => { if (this.djPending) { this.djSettle(); this.djError('The sample is taking too long. Try again in a moment.'); this.renderDj(); } }, 120000);
+    this.renderDj();
+    try {
+      const started = await window.LvxRadio.post('/api/dj/preview', { djId: dj.id, style: this.djPendingStyle });
+      if (this.djPending === dj.id && started?.id) this.djRequestId = started.id;
+    } catch (error) { this.djSettle(); this.djError(error.message || 'The sample could not be started.'); this.renderDj(); }
+  }
+
+  renderDj() {
+    if (this.page !== 'dj') return;
+    const flow = window.LvxDjFlow, dj = this.djValue;
+    if (!flow || !dj) return;
+    const setText = (selector, text) => { const node = this.find(selector); if (node.textContent !== text) node.textContent = text; };
+    const view = flow.djSwitchView(dj);
+    this.find('.lvx-dj-power').setAttribute('aria-pressed', String(view.on));
+    this.find('.lvx-dj-power').disabled = !view.canToggle;
+    setText('.lvx-dj-state', view.state); setText('.lvx-dj-caption', view.caption);
+    const min = this.find('.lvx-dj-min'), max = this.find('.lvx-dj-max');
+    if (document.activeElement !== min) min.value = String(dj.minSongs ?? 2);
+    if (document.activeElement !== max) max.value = String(dj.maxSongs ?? 4);
+    const model = flow.modelView(this.djModelValue);
+    setText('.lvx-dj-model-status', model.word); setText('.lvx-dj-model-detail', model.detail); setText('.lvx-dj-model-error', model.error);
+    this.find('.lvx-dj-model-error').hidden = !model.error;
+    this.find('.lvx-dj-model-progress').setAttribute('aria-valuenow', String(model.percent));
+    this.find('.lvx-dj-model-progress i').style.width = `${model.percent}%`;
+    this.find('.lvx-dj-model-download').hidden = !model.canDownload;
+    this.find('.lvx-dj-model-pause').hidden = !model.canPause;
+    this.find('.lvx-dj-model-choose').hidden = !model.canChoose || !window.LvxDesktop?.chooseDjModelFolder;
+    setText('.lvx-dj-model-download', model.downloadLabel);
+    const voice = flow.voiceView(dj.voice ?? this.djVoiceValue);
+    setText('.lvx-dj-voice-status', voice.word); setText('.lvx-dj-voice-detail', voice.detail);
+    this.find('.lvx-dj-voice-download').hidden = !voice.canDownload;
+    this.renderDjList();
+  }
+
+  renderDjList() {
+    const flow = window.LvxDjFlow, catalog = this.djCatalog;
+    if (!catalog) return;
+    const preview = this.djSnapshot?.preview, canListen = !!this.djValue?.ready;
+    const key = JSON.stringify([catalog.djs.map(d => d.id), canListen, this.djPending, preview?.status, preview?.error]);
+    if (key === this.djListKey) return;
+    this.djListKey = key;
+    this.find('.lvx-dj-list').replaceChildren(...catalog.djs.map(dj => {
+      const row = document.createElement('div'); row.className = 'lvx-dj-row';
+      const portrait = document.createElement('span'); portrait.className = 'dj-portrait'; portrait.setAttribute('aria-hidden', 'true');
+      const initial = document.createElement('b'); initial.textContent = flow.djInitial(dj.name);
+      const image = document.createElement('img'); image.src = flow.djAvatarUrl(dj.id); image.alt = ''; image.draggable = false; image.addEventListener('error', () => { image.style.display = 'none'; });
+      portrait.append(initial, image);
+      const text = document.createElement('span'); text.className = 'lvx-dj-row-text';
+      const name = document.createElement('strong'); name.textContent = dj.name;
+      const meta = document.createElement('small'); meta.className = 'lvx-dj-blurb'; meta.textContent = dj.blurb ?? dj.character ?? ''; meta.title = dj.character ?? meta.textContent;
+      const fit = document.createElement('small'); fit.className = 'lvx-dj-fit'; fit.textContent = flow.djVoiceTag(dj); fit.title = (dj.bestFor ?? []).length ? `Suits ${(dj.bestFor ?? []).join(', ')}` : '';
+      text.append(name, meta, fit);
+      const state = flow.previewState(preview, dj.id, this.djPending);
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'lvx-dj-listen lvx-settings-secondary';
+      button.textContent = state.label; button.disabled = !canListen || state.busy || !!this.djPending;
+      button.title = canListen ? `Hear ${dj.name}` : 'Install the script model and the News voice first';
+      button.setAttribute('aria-label', `Hear ${dj.name}`); button.setAttribute('aria-busy', String(state.busy));
+      button.addEventListener('click', () => void this.djAudition(dj));
+      row.append(portrait, text, button);
+      if (state.error) { const error = document.createElement('p'); error.className = 'lvx-voice-error'; error.textContent = state.error; row.append(error); }
+      return row;
+    }));
+  }
+
   close() { if (!this.value?.choiceMade) this.welcome(); else this.dialog.close(); }
 
   dirty() {
@@ -309,5 +496,5 @@ window.LvxLiveSettings = class {
     catch (error) { this.error(error.message); }
   };
 
-  destroy() { this.stopVoicePoll(); this.dialog.remove(); }
+  destroy() { this.stopVoicePoll(); this.stopDjPoll(); this.dialog.remove(); }
 };

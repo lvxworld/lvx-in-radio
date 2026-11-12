@@ -1,8 +1,11 @@
+import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LUX = resolve(ROOT, '../lux-in-music');
+// Built by scripts/build-dj-llm.sh; the app ships the same folder as Resources/dj-llm.
+export const VENDOR_DJ_LLM_COMMAND = join(ROOT, 'vendor/dj-llm/bin/mlx_lm.server');
 const YUE2_RELEASE = 'cca74d8980c00f30ab8d52248a367c01ad633ec2';
 // The official catalog, published from the lvx-radio-feeds repository. Listeners never type it.
 export const DEFAULT_STATION_CATALOG_URL = 'https://lvxworld.github.io/lvx-radio-feeds/catalog.json';
@@ -23,6 +26,8 @@ export function loadConfig(env = process.env, overrides = {}) {
       voiceModelDir: resolve(env.LVX_NEWS_VOICE_DIR ?? join(dataDir, 'models/Qwen3-TTS-12Hz-1.7B-CustomVoice')),
       speaker: env.LVX_NEWS_SPEAKER ?? 'Ryan',
     },
+    // The DJ writer launcher; null keeps python3 -m mlx_lm.server. LVX_DJ_LLM_COMMAND still wins in DjDesk.
+    djLlmCommand: overrides.djLlmCommand ?? (existsSync(VENDOR_DJ_LLM_COMMAND) ? VENDOR_DJ_LLM_COMMAND : null),
     lux: {
       bundledDir: overrides.luxDir ?? env.LVX_LUX_BUNDLED_DIR ?? join(ROOT, 'lux'),
       downloadDir: join(dataDir, 'lux'),

@@ -62,6 +62,9 @@ export function parseManifest(manifest) {
     } catch {
       // The station's own settings describe a song that carries none of its own.
     }
+    // Optional mood for the DJ (one word is spoken): remote input, letters and spaces only.
+    const mood = typeof entry.mood === 'string' ? entry.mood.trim() : '';
+    if (mood && mood.length <= 40 && /^[A-Za-z][A-Za-z ]*$/.test(mood)) generation = { ...generation, mood };
     songs.push({
       id: entry.id,
       station: station.id,

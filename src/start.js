@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { AudioCppEngine, stopStaleEngine } from './engine/audiocpp.js';
 import { ModelSetup } from './engine/model-setup.js';
 import voiceManifest from './engine/news-voice-manifest.json' with { type: 'json' };
+import djLlmManifest from './engine/dj-llm-manifest.json' with { type: 'json' };
 import { engineAvailability } from './engine/availability.js';
 import { readGpuPercent } from './engine/gpu.js';
 import { Library } from './radio/library.js';
@@ -14,10 +15,11 @@ import { NEWS_FEEDS, fetchFrom, probeFeed } from './radio/news/news-feed.js';
 import { NEWS_STATION, NewsDesk } from './radio/news/news-desk.js';
 import { mixBulletin } from './radio/news/news-mix.js';
 import { createSynthesizer, renderParts, STYLES, VOICE_MODEL_ID } from './radio/news/news-voice.js';
+import { DjDesk } from './radio/dj/dj-desk.js';
 import { createApp, listen } from './server/app.js';
 
 /** Starts the whole radio. Both the command line and the desktop app run this. */
-export async function startRadio(config) {
+export async function startRadio(config, { wrapEngine = engine => engine } = {}) {
   await stopStaleEngine(config.engine.dataDir);
   const library = new Library(config.libraryDir);
   await library.load();
@@ -37,7 +39,8 @@ export async function startRadio(config) {
   await voice.initialize();
   const voiceInstalled = () => voiceManifest.files.every((file) => existsSync(join(voiceFolder.modelDir, file.path)));
   // The same object as the setup's, so a folder found or chosen after startup reaches the engine.
-  const engine = new AudioCppEngine(Object.assign(config.engine, { tts: () => (voiceInstalled() ? { modelDir: voiceFolder.modelDir } : undefined) }));
+  const songInstalled = () => existsSync(join(config.engine.modelDir, config.engine.modelFile)) && existsSync(join(config.engine.modelDir, config.engine.vaeFile));
+  const engine = wrapEngine(new AudioCppEngine(Object.assign(config.engine, { tts: () => (voiceInstalled() ? { modelDir: voiceFolder.modelDir } : undefined), songInstalled })));
   station = new RadioStation({
     engine,
     library,
@@ -70,7 +73,14 @@ export async function startRadio(config) {
   });
   await news.load();
   news.on('change', () => station.emit('change'));
-  const server = createApp({ station, uiDir: config.uiDir, readGpu: readGpuPercent, setup, live, news, voice });
+  const djModelFolder = resolve(process.env.LVX_DJ_LLM_DIR ?? join(config.engine.dataDir, 'models/Qwen3.5-4B-4bit'));
+  const djModelConfig = { dataDir: join(config.engine.dataDir, 'dj-llm'), modelDir: djModelFolder, binary: config.engine.binary, modelSpecs: config.engine.modelSpecs };
+  const djModel = new ModelSetup(djModelConfig, { files: djLlmManifest.files, components: [] });
+  await djModel.initialize();
+  const dj = new DjDesk({ dataDir: config.engine.dataDir, station, engine, modelSetup: djModel, voiceSetup: voice, newsUrgent: () => news.isUrgent(), slotEverySong: config.demoDjEverySong === true, llmCommand: config.djLlmCommand ?? null });
+  await dj.load();
+  station.attachDJ(dj);
+  const server = createApp({ station, uiDir: config.uiDir, readGpu: readGpuPercent, setup, live, news, voice, dj });
   const address = await listen(server, config.port);
 
   live.start();
@@ -83,7 +93,7 @@ export async function startRadio(config) {
       closing = true;
       server.closeAllConnections();
       server.close();
-      await Promise.all([live.close(), news.close(), voice.close(), setup.close(), station.close()]);
+      await Promise.all([live.close(), news.close(), voice.close(), djModel.close(), setup.close(), station.close()]);
     },
   };
 }

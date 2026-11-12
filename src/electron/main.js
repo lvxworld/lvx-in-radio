@@ -27,7 +27,7 @@ function radioConfig() {
   const dataDir = process.env.LVX_DATA_DIR ?? app.getPath('userData');
   const engineDir = app.isPackaged ? join(process.resourcesPath, 'engine') : join(ROOT, 'vendor/audio.cpp');
   const packaged = app.isPackaged
-    ? { luxDir: join(process.resourcesPath, 'lux'), modelDir: join(dataDir, 'models') }
+    ? { luxDir: join(process.resourcesPath, 'lux'), modelDir: join(dataDir, 'models'), djLlmCommand: join(process.resourcesPath, 'dj-llm/bin/mlx_lm.server') }
     : {};
   const config = loadConfig(process.env, {
     dataDir,
@@ -58,6 +58,11 @@ function openWindow(address) {
     if (result.canceled) return null;
     await radio.setup.useDirectory(result.filePaths[0], true);
     return radio.setup.snapshot();
+  });
+  ipcMain.handle('radio:choose-dj-model', async (event) => {
+    if (!window || event.sender !== window.webContents) throw new Error('Unknown window');
+    const result = await dialog.showOpenDialog(window, { title: 'Choose your DJ script model folder', properties: ['openDirectory'] });
+    return result.canceled ? null : result.filePaths[0];
   });
   window = new BrowserWindow({
     width: 1280,

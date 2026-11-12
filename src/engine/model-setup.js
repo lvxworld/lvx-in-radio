@@ -22,6 +22,7 @@ export function huggingFaceHub(env = process.env) {
 export class ModelSetup {
   #engine;
   #files;
+  #componentChecks;
   #settings;
   #ownedDir;
   #fetch;
@@ -33,12 +34,16 @@ export class ModelSetup {
   #verified = {};
   #closed = false;
 
-  constructor(engine, { files = manifest.files, fetchFile = fetch, freeSpace, hub = huggingFaceHub() } = {}) {
+  constructor(engine, { files = manifest.files, fetchFile = fetch, freeSpace, hub = huggingFaceHub(), components } = {}) {
     this.#hub = hub;
     this.#engine = engine;
     this.#ownedDir = engine.modelDir;
     this.#settings = join(engine.dataDir, 'model-settings.json');
     this.#files = files;
+    this.#componentChecks = components ?? [
+      { name: 'Music engine', path: engine.binary, executable: true },
+      { name: 'Engine configuration', path: join(engine.modelSpecs, 'yue2.json') },
+    ];
     this.#fetch = fetchFile;
     this.#space = freeSpace ?? (async (path) => { const s = await statfs(path); return s.bavail * s.bsize; });
   }
@@ -85,8 +90,8 @@ export class ModelSetup {
       this.#state.error = 'The model files have changed or are missing. Choose the folder again or resume setup.';
     }
     const components = [];
-    for (const [name, path] of [['Music engine', this.#engine.binary], ['Engine configuration', join(this.#engine.modelSpecs, 'yue2.json')]]) {
-      try { await access(path, name === 'Music engine' ? constants.X_OK : constants.R_OK); if (!(await stat(path)).isFile()) throw new Error('Not a file'); components.push({ name, ready: true }); } catch { components.push({ name, ready: false }); }
+    for (const check of this.#componentChecks) {
+      try { await access(check.path, check.executable ? constants.X_OK : constants.R_OK); if (!(await stat(check.path)).isFile()) throw new Error('Not a file'); components.push({ name: check.name, ready: true }); } catch { components.push({ name: check.name, ready: false }); }
     }
     const ready = this.#state.status === 'ready' && components.every(c => c.ready);
     return { ...this.#state, ready, components, total: this.#files.reduce((s, f) => s + f.size, 0), directory: this.#engine.modelDir };

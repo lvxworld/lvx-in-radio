@@ -18,6 +18,8 @@ npm run test:menu-bar # Native mini player, playback and generation controls; no
 npm run test:live-ui  # Electron renderer: settings, Describe, QR PNG round-trip, Live playback; no model needed
 npm start             # browser UI at http://127.0.0.1:8787
 npm run fetch-engine  # pinned audio.cpp release, checksum verified
+npm run fetch-dj-llm  # bundled Python + mlx_lm.server for the DJ writer (vendor/dj-llm), built once
+npm run build:dj-previews  # re-render the six DJ audition clips (real Qwen3-TTS voice)
 npm run app           # Electron from source
 npm run dist          # build the arm64 DMG in dist/
 npm run fresh         # copy from the DMG and launch with empty temporary data
@@ -36,6 +38,17 @@ caches. A separate macOS test account is the next level of isolation.
 To reuse a test folder, set `LVX_FRESH_DIR` to an existing folder before running
 `npm run fresh`. A second launch focuses the existing app; quit it first for a new
 test session.
+
+### DJ audition clips
+
+`src/radio/dj/previews/` holds one MP3 per DJ (64 kbps mono, loudness -18 LUFS) plus
+`manifest.json`, so Listen in Settings and the DJ tiles play at once with no engine, even
+mid-song or before the voice is installed. Run `npm run build:dj-previews` (needs the
+Qwen3-TTS CustomVoice folder, `LVX_NEWS_VOICE_DIR` or `.data/models/`, and ffmpeg with
+libmp3lame, `FFMPEG` to override) after changing a DJ's speaker or `bestFor`, a style's
+`instruct`, the preview sentence (`PREVIEW_TEXT`) or `VOICE_VERSION` in
+`src/radio/dj/dj-preview.js`. Until then the app ignores the stale clip (its prompt hash no
+longer matches) and voices that DJ live. Listen to the clips before committing them.
 
 ## Releases
 
@@ -89,3 +102,11 @@ repository-relative links in `.agents/skills/`. `AGENTS.md` and `CLAUDE.md` rout
 matching work to them. They are available for automatic selection in new sessions,
 and can also be explicitly invoked. Edit the canonical files in `.claude/skills/`
 so the two agents never drift apart.
+
+## Full app demo
+`npm run demo` serves the real app at http://127.0.0.1:8790 with persistent `~/.lvx-dev/demo-data`.
+`npm run demo -- --fresh` (or `DEMO_FRESH=1`) resets only `~/.lvx-dev/demo-fresh`, without seeds, for first-launch Lux autoplay.
+Song generation waits `GEN_MS` (default 20000), then decodes an unused bundled MP3 with ffmpeg-full; YuE2 never loads.
+News/DJ voices use installed shared weights; the DJ writer uses the HF cache and `DJ_LLM_COMMAND` (default `vendor/dj-llm/bin/mlx_lm.server`, built by `npm run fetch-dj-llm`).
+`DJ_DEMO_SLOT=1 npm run demo` offers a DJ slot every song; default remains 2–4, with normal readiness/runway/RAM gates.
+`node scripts/demo-check.mjs` starts its own non-GPU demo on a free port and deletes its isolated data on exit; normal demo data is untouched.

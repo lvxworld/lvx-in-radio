@@ -42,6 +42,23 @@ Use both for features spanning UI and behavior. They are discoverable by Codex i
 `.agents/skills/` through repository-relative links and by Claude Code directly
 in `.claude/skills/`. `todo.md`, when present, is the owner's private reminder list: it is not part of the repository.
 
+## DJ writer runtime
+
+`scripts/build-dj-llm.sh` (`npm run fetch-dj-llm`, also run by `npm run dist` and the release
+workflow) installs Python wheels only from `scripts/dj-llm/requirements.txt`, with
+`--require-hashes`. Hashes change only when a version changes: PyPI never replaces a file
+under the same version. To update, edit the top-level pins in `scripts/dj-llm/requirements.in`,
+regenerate the lock, then bump `BUNDLE_VERSION` in the build script so existing bundles rebuild:
+
+```sh
+MACOSX_DEPLOYMENT_TARGET=14.0 uv pip compile scripts/dj-llm/requirements.in --generate-hashes \
+  --python-platform aarch64-apple-darwin --python-version 3.12 \
+  --index-url https://pypi.org/simple --no-header -o scripts/dj-llm/requirements.txt
+```
+
+The deployment target matches the `macosx_14_0` wheels the bundle installs. Never edit
+`requirements.txt` by hand.
+
 ## Bundled music
 
 Append to the songs in `lux/` and keep existing entries and files unchanged: listeners' likes refer to their ids.
