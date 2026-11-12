@@ -95,6 +95,15 @@ export class StationStore {
     await this.#save();
   }
 
+  /** `{ id: null }` keeps a chosen "No DJ"; 'default' removes the choice so the style default applies. */
+  async setDj(id, djId) {
+    const station = this.get(id);
+    if (!station) throw new RangeError('Unknown station');
+    if (djId === 'default') delete station.dj;
+    else station.dj = { id: djId };
+    await this.#save();
+  }
+
   /** Takes the free frequency farthest from the others, recycling when full. */
   #freeFrequency() {
     if (this.#reserved.length >= FREQUENCY_COUNT) throw new RangeError('The radio dial is full. Turn off LVX Live to create another station.');

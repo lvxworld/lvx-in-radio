@@ -1,0 +1,1 @@
+{"highpassHz":90,"presence":{"hz":3500,"gainDb":2,"q":0.8},"compressor":{"thresholdDb":-22,"ratio":3.5,"attackSec":0.01,"releaseSec":0.2,"kneeDb":8},"makeupDb":2,"reverb":{"seconds":0.6,"decay":1.7,"wet":-17},"duckDb":-7,"voiceGainDb":0}

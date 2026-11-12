@@ -89,6 +89,16 @@ export class NewsDesk extends EventEmitter {
     return { ...this.#settings, feeds: this.feeds(), station: NEWS_STATION, status, missing: this.#missing, nextAt: this.#settings.enabled ? new Date(this.#target(this.#now())).toISOString() : null, latest, due: this.#due, error: this.#error };
   }
 
+  isUrgent() {
+    if (!this.#settings.enabled) return false;
+    // Urgent only while a bulletin needs the engine: being made, waiting for it, or inside the
+    // lead window of an hour not yet attempted. A finished bulletin waiting for Listen/Later does
+    // not need the engine, so it no longer silences the DJ (fix2: :50-:05 and an unanswered card did).
+    if (this.#producing || this.#manualWait || this.#cancelWait) return true;
+    const now = this.#now();
+    return now >= this.#target(now) - this.#leadMs;
+  }
+
   feeds() {
     return [
       ...this.#defaults.map((feed) => ({ id: feed.id, name: feed.name, url: feed.url, language: 'en', custom: false, enabled: !this.#disabled.has(feed.id) })),
@@ -195,7 +205,7 @@ export class NewsDesk extends EventEmitter {
       granted = true; this.#manualWait = null;
       if (this.#closed || !this.#settings.enabled) { lent(); this.emit('change'); return; }
       void run(lent);
-    });
+    }, { priority: 'news', expiresAt: this.#target(this.#now()) + this.#lateMs });
     if (!granted) { this.#manualWait = cancel; this.emit('change'); }
   }
 
@@ -262,7 +272,7 @@ export class NewsDesk extends EventEmitter {
   /** A song is composing: ask to be served the moment it ends, before the next one starts. */
   #waitForEngine() {
     if (this.#cancelWait || !this.#requestHold) return;
-    this.#cancelWait = this.#requestHold((release) => { this.#cancelWait = null; this.#arm(release); });
+    this.#cancelWait = this.#requestHold((release) => { this.#cancelWait = null; this.#arm(release); }, { priority: 'news', expiresAt: this.#target(this.#now()) + this.#lateMs });
   }
 
   #announce(target) {

@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('LvxDesktop', {
     return () => ipcRenderer.removeListener('radio:toggle-generation', listener);
   },
   chooseModelFolder: (accepted) => ipcRenderer.invoke('radio:choose-model', accepted === true),
+  chooseDjModelFolder: () => ipcRenderer.invoke('radio:choose-dj-model'),
 });
 
 // The page owns which view is visible; Electron owns the window around it.

@@ -7,6 +7,7 @@ import { ModelMissingError } from '../engine/availability.js';
 import { scoreFromPlan } from './instrumental.js';
 import { bucketFor } from './library.js';
 import { buildStyle, validateConfig } from './style.js';
+import { DJ_IDS, stationDj } from './dj/dj-style.js';
 
 const SEMANTIC_FRAMES_PER_SECOND = 25;
 const MIN_TRACK_SECONDS = 60;
@@ -78,6 +79,7 @@ export class RadioStation extends EventEmitter {
   #job = null;
   #holds = 0;
   #holdWaiters = [];
+  #dj = null;
   #arrival = null;
   #availability;
   #modelReady = true;
@@ -87,10 +89,12 @@ export class RadioStation extends EventEmitter {
   #estimates = { sung: DEFAULT_ESTIMATE_SECONDS, instrumental: DEFAULT_INSTRUMENTAL_ESTIMATE_SECONDS };
   #lastWorkAt = Date.now();
   #timer;
+  #libraryOnly;
 
-  constructor({ engine, library, stations, catalog = null, availability = async () => ({ ready: true, missing: [] }), leadMarginSec = 30, idleUnloadMs = 60_000, tickMs = 5_000 }) {
+  constructor({ engine, library, stations, catalog = null, availability = async () => ({ ready: true, missing: [] }), leadMarginSec = 30, idleUnloadMs = 60_000, tickMs = 5_000, libraryOnly = false }) {
     super();
     this.#engine = engine;
+    this.#libraryOnly = libraryOnly;
     this.#library = library;
     this.#stations = stations;
     this.#catalog = catalog;
@@ -107,6 +111,7 @@ export class RadioStation extends EventEmitter {
    * listener is waiting on this station alone, so whatever is composing stops.
    */
   async tune(config, { fromLibrary = false, stationId, identity = {}, paused = false } = {}) {
+    await this.#dj?.cancel('station changed');
     const lux = this.#catalog?.station(stationId) ?? null;
     if (!lux) validateConfig(config);
     const saved = stationId && !lux ? this.#stations.get(stationId) : null;
@@ -140,7 +145,52 @@ export class RadioStation extends EventEmitter {
     };
     this.#session = session;
     this.#plan(session);
+    this.#dj?.consider(this.djContext());
     return session.id;
+  }
+
+  attachDJ(dj) {
+    this.#dj = dj;
+    dj.on?.('change', () => this.emit('change'));
+    this.on('change', () => dj.consider?.(this.djContext()));
+  }
+
+  djContext() {
+    const session = this.#session;
+    if (!session) return { stationId: null, lux: false };
+    const current = session.tracks.find((track) => track.id === session.playback.trackId && track.status === 'ready') ?? null;
+    const next = this.#upcoming(session).find((track) => track.status === 'ready') ?? null;
+    if (session.lux) {
+      // LVX: MP3s of known length, all listed; never a song job. Runway is the song on air only.
+      const upcoming = this.#upcoming(session).filter((track) => track.status === 'ready');
+      const { trackId, positionSec, playing, at } = session.playback;
+      const played = positionSec + (playing ? (Date.now() - at) / 1000 : 0);
+      const remaining = current?.durationSec > 0 ? Math.max(current.durationSec - played, 0) : 0;
+      return { stationId: session.station.id, stationName: session.station.name, stationDescription: session.station.quote ?? '', playbackSessionId: session.id, lux: true, live: session.station.live === true, playing: session.playback.playing, busy: Boolean(this.#job || this.#holds), djId: this.#dj?.luxDj?.(session.station).dj ?? null, current, next: upcoming[0] ?? null, after: upcoming[1] ?? null, config: session.config, runwaySec: remaining, songEstimateSec: 0, playbackTrackId: trackId };
+    }
+    return { stationId: session.station.id, stationName: session.station.name, playbackSessionId: session.id, lux: false, playing: session.playback.playing, busy: Boolean(this.#job || this.#holds), djId: stationDj(session.station).dj, current, next, config: session.config, runwaySec: this.#runwaySeconds(session), songEstimateSec: session.generationEnabled ? this.#estimateFor(session.config) : 0, playbackTrackId: session.playback.trackId };
+  }
+
+  /** Chooses this station's DJ only: a DJ id, null for "No DJ", or 'default' to go back to the style default. */
+  async setDj(id, djId) {
+    if (!DJ_IDS.includes(djId) && djId !== null && djId !== 'default') throw new RangeError('Unknown DJ');
+    const lux = this.#catalog?.station(id);
+    if (lux) {
+      // LVX choices live in dj-settings.json, never in stations.json.
+      if (!this.#dj?.setLuxDj) throw new RangeError('Unknown station');
+      const result = await this.#dj.setLuxDj(lux, djId);
+      if (this.#session?.station.id === id) await this.#dj.cancel('station DJ changed');
+      this.#dj.consider(this.djContext());
+      this.emit('change');
+      return result;
+    }
+    const record = this.#stations.get(id);
+    if (!record) throw new RangeError('Unknown station');
+    await this.#stations.setDj(id, djId);
+    if (this.#session?.station.id === id) await this.#dj?.cancel('station DJ changed');
+    this.#dj?.consider(this.djContext());
+    this.emit('change');
+    return { stationId: id, ...stationDj(record) };
   }
 
   /**
@@ -182,6 +232,7 @@ export class RadioStation extends EventEmitter {
 
   /** Stops whatever is composing, losing it, and starts what was waiting. */
   async cancelJob() {
+    await this.#dj?.cancel('job stopped');
     const job = this.#job;
     if (!job) return;
     if (job.preparation) this.#preparation = null;
@@ -237,16 +288,23 @@ export class RadioStation extends EventEmitter {
     }
     if (!(positionSec >= 0) || typeof playing !== 'boolean') throw new TypeError('Invalid playback state');
     const changedTrack = session.playback.trackId !== trackId;
+    if (!playing || changedTrack) {
+      const previous = session.tracks.find((track) => track.id === session.playback.trackId);
+      const previousPlayed = session.playback.positionSec + (session.playback.playing ? (Date.now() - session.playback.at) / 1000 : 0);
+      const endedNaturally = changedTrack && previous && (previous.durationSec ?? 0) - previousPlayed <= 3;
+      await this.#dj?.cancel(!playing ? 'playback paused' : endedNaturally ? 'song ended' : 'track skipped', { trackId });
+    }
     session.playback = { trackId, positionSec, playing, at: Date.now() };
     if (playing) session.held = false;
     if (changedTrack) await this.#updateSong(trackId, { lastPlayedAt: new Date().toISOString() });
     this.#plan(session);
+    this.#dj?.consider(this.djContext());
     this.emit('change');
   }
 
   /**
-   * Turns new songs off or on. While off the GPU rests completely and the
-   * station keeps playing what the library already holds.
+   * Turns new songs off or on. While off the station plays its library;
+   * DJ and News production remain independent and may use the voice engine.
    */
   async setGenerationEnabled(enabled) {
     if (typeof enabled !== 'boolean') throw new TypeError('Expected on or off');
@@ -256,7 +314,7 @@ export class RadioStation extends EventEmitter {
     if (!enabled) {
       session.tracks = session.tracks.filter((track) => track.status === 'ready');
       if (this.#jobFor(session)) await this.#abortJob();
-      // A news bulletin may be using the engine: leave it, the idle unload stops it afterwards.
+      // DJ or News may be using the engine: their holds protect active voice work.
       if (!this.#job && this.#holds === 0) await this.#engine.stop();
     } else {
       session.error = null;
@@ -278,6 +336,8 @@ export class RadioStation extends EventEmitter {
     const track = this.#session?.tracks.find((entry) => entry.id === trackId);
     if (track) track.liked = changes.liked;
     if (type === 'dislike' && this.#session) {
+      await this.#dj?.rejectSong(trackId);
+      await this.#dj?.cancel('song rejected');
       const session = this.#session;
       if (track?.id !== session.playback.trackId) session.tracks = session.tracks.filter((entry) => entry !== track);
       this.#plan(session);
@@ -340,7 +400,7 @@ export class RadioStation extends EventEmitter {
   snapshot() {
     const session = this.#session;
     const stations = [...(this.#catalog?.stations() ?? []), ...this.#stations.list()].map(
-      ({ id, k, name, quote, config, lastPlayedAt, firstSeed, lux = false, live = false, genre }) => ({
+      ({ id, k, name, quote, config, lastPlayedAt, firstSeed, lux = false, live = false, genre, dj }) => ({
         id,
         k,
         name,
@@ -351,6 +411,7 @@ export class RadioStation extends EventEmitter {
         lux,
         live,
         genre,
+        ...(!lux && !live ? stationDj({ dj, config }) : this.#dj?.luxDj ? this.#dj.luxDj({ id, config }) : {}),
         songCount: lux ? this.#catalog.countForStation(id) : this.#library.countForStation(id),
       }),
     );
@@ -394,6 +455,7 @@ export class RadioStation extends EventEmitter {
     this.#session = null;
     this.#preparation = null;
     this.#job = null;
+    await this.#dj?.close();
     await this.#engine.stop();
   }
 
@@ -411,7 +473,7 @@ export class RadioStation extends EventEmitter {
   }
 
   #canGenerate(session) {
-    return session.generationEnabled && !session.error && this.#modelReady;
+    return !this.#libraryOnly && session.generationEnabled && !session.error && this.#modelReady;
   }
 
   #updateSong(trackId, changes) {
@@ -425,7 +487,7 @@ export class RadioStation extends EventEmitter {
   #tick() {
     this.#refreshModel().catch((error) => console.error('Could not check the model:', error.message));
     const session = this.#session;
-    if (session) this.#plan(session);
+    if (session) { this.#plan(session); this.#dj?.consider(this.djContext()); }
     if (!this.#job && this.#holds === 0 && Date.now() - this.#lastWorkAt > this.#idleUnloadMs) {
       this.#engine.stop().catch((error) => console.error('Could not unload the engine:', error.message));
     }
@@ -484,8 +546,14 @@ export class RadioStation extends EventEmitter {
         return;
       }
       const bucket = bucketFor(session.config);
+      if (this.#libraryOnly) {
+        if (this.#upcoming(session).length >= 5) return;
+        if (!this.#appendReplay(session, bucket, this.#playingIds(session))) return;
+        continue;
+      }
       if (session.lux || !this.#canGenerate(session)) {
-        if (this.#upcoming(session).length > 0) return;
+        // LVX keeps two songs ahead when it has them, so a DJ line can aim at the end of the next one.
+        if (this.#upcoming(session).length >= (session.lux ? 2 : 1)) return;
         if (!this.#appendReplay(session, bucket, this.#playingIds(session))) return;
         continue;
       }
@@ -627,6 +695,8 @@ export class RadioStation extends EventEmitter {
    * while a song is composing: a running song is never interrupted. No song starts until released.
    */
   tryHold() {
+    if (!this.#job && this.#holds === 0 && this.#session) this.#plan(this.#session);
+    if (!this.#job && this.#holds === 0 && this.#holdWaiters.length) { this.#grantHold(); return null; }
     if (this.#job || this.#holds > 0) return null;
     this.#holds += 1;
     this.#lastWorkAt = Date.now();
@@ -645,16 +715,33 @@ export class RadioStation extends EventEmitter {
    * free, before the next song is planned, so back-to-back songs cannot starve the news.
    * Returns a function that withdraws the request.
    */
-  requestHold(onGranted) {
-    this.#holdWaiters.push(onGranted);
+  requestHold(onGranted, { priority = 'news', expiresAt = Infinity, plan = true } = {}) {
+    const waiter = { onGranted, priority: priority === 'dj' ? 1 : 2, expiresAt };
+    this.#holdWaiters.push(waiter);
+    this.#holdWaiters.sort((a, b) => a.priority - b.priority || a.expiresAt - b.expiresAt);
+    // plan: false (a DJ voice audition) goes ahead of a song that is due but not yet started.
+    if (plan && !this.#job && this.#holds === 0 && this.#session) this.#plan(this.#session);
     this.#grantHold();
-    return () => { this.#holdWaiters = this.#holdWaiters.filter((waiter) => waiter !== onGranted); };
+    return () => { this.#holdWaiters = this.#holdWaiters.filter((entry) => entry !== waiter); };
   }
 
   #grantHold() {
     if (this.#job || this.#holds > 0 || !this.#holdWaiters.length) return false;
-    const waiter = this.#holdWaiters.shift();
-    waiter(this.tryHold());
+    const now = Date.now();
+    this.#holdWaiters = this.#holdWaiters.filter((entry) => entry.expiresAt > now);
+    const entry = this.#holdWaiters.shift();
+    if (!entry) return false;
+    this.#holds += 1;
+    this.#lastWorkAt = Date.now();
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      this.#holds -= 1;
+      this.#lastWorkAt = Date.now();
+      this.#startNext();
+    };
+    entry.onGranted(release);
     return true;
   }
 

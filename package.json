@@ -11,11 +11,15 @@
     "test": "node --test tests/*.test.js",
     "lux:songs": "node scripts/lux-songs.js",
     "fetch-engine": "node scripts/fetch-engine.js",
+    "fetch-dj-llm": "node scripts/fetch-dj-llm.js",
+    "build:dj-previews": "node scripts/build-dj-previews.mjs",
     "app": "electron .",
-    "dist": "npm run fetch-engine && electron-builder --mac --arm64 --publish never && node scripts/clean-dist.js",
+    "dist": "npm run fetch-engine && npm run fetch-dj-llm && electron-builder --mac --arm64 --publish never && node scripts/clean-dist.js",
     "fresh": "sh scripts/fresh-launch.sh",
     "test:menu-bar": "electron tests/electron/menu-bar-smoke.js",
-    "test:live-ui": "electron tests/electron/live-radio-smoke.js"
+    "test:live-ui": "electron tests/electron/live-radio-smoke.js",
+    "demo": "bash scripts/run-demo.sh",
+    "e2e:dj": "node scripts/e2e-dj-app.mjs"
   },
   "devDependencies": {
     "electron": "^45.2.1",

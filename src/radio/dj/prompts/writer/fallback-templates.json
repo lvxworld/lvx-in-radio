@@ -1,0 +1,27 @@
+{
+  "relax": [
+    "There is no prize for rushing through a quiet moment. Let your shoulders soften and give yourself a little room to breathe; even the to-do list can take a tea break. Stay in this gentle atmosphere as {title} brings {mood} energy next.",
+    "How about letting the world hurry without us for a while? Picture a warm cup, a comfortable corner, and absolutely no need to impress the clock. It already has enough hands. We will keep things easy here, with {title} and {mood} energy next.",
+    "Make a little space for doing less. A slow breath counts as a perfectly good plan around here, and your imaginary hammock has no waiting list. Settle into the station with us; up next is {title}, with {mood} energy."
+  ],
+  "edm": [
+    "Got a little energy left to spend? Bring it here and let the everyday worries wait outside; they never learned to dance anyway. Keep that spark moving with us, share the glow, and make room for {title}, with {mood} energy next.",
+    "Picture the lights turning into an invitation to move. No perfect steps required; even an enthusiastic shoulder has a place here. This is our little pocket of momentum, so stay in it with us. Next comes {title}, bringing {mood} energy.",
+    "Let the ordinary part of the day clock out for a moment. We have room for a little movement, a little glow, and dancing that would confuse a fitness watch. Keep the energy close; {title} is next, with {mood} energy."
+  ],
+  "rock": [
+    "Some days need a little grit and room to let off steam. Bring your rough edges; nobody is checking the polish at the door. Keep that open-road feeling close, even if your big journey is across the kitchen. Next is {title}, with {mood} energy.",
+    "What if we gave the day a little more backbone? Settle into that stubborn, keep-going mood with us; even your imaginary leather jacket deserves an outing. There is room for a little attitude here. Up next, {title} brings {mood} energy.",
+    "Here is an invitation to shake a little dust off the day. No grand adventure required; the sofa can be base camp if it insists. Bring some spirit, keep the volume comfortable, and stay with us for {title}, with {mood} energy next."
+  ],
+  "pop": [
+    "A little brightness can go a long way around here. Bring a smile, or borrow an imaginary one until yours warms up; there are no late fees. Stay in this easy, good-company mood with us. Next comes {title}, with {mood} energy.",
+    "How about leaving a little room for joy today? Perfect timing is optional, and your kitchen singalong can remain blissfully unreviewed. We are keeping the atmosphere bright and the company easy. Stay close for {title}, bringing {mood} energy next.",
+    "Consider this a small invitation to enjoy yourself without making a project of it. Your inner critic can take a snack break; we promise not to ask for its notes. Keep that lightness nearby as {title} brings {mood} energy next."
+  ],
+  "generic": [
+    "There is something good about having a little company without needing an agenda. Take this moment at your own pace; even an imaginary meeting can be postponed. Stay here with us and let the day loosen its grip. Next is {title}, with {mood} energy.",
+    "What would a little breathing room look like right now? Around here it needs no booking, and the cancellation policy is remarkably relaxed. Make yourself comfortable in this shared moment. We will keep you company, with {title} and {mood} energy next.",
+    "Give yourself permission to be here for a few minutes. Nothing to solve, nothing to submit, and definitely no surprise homework from the radio. Let this small pocket of company fit your pace. Coming next is {title}, with {mood} energy."
+  ]
+}

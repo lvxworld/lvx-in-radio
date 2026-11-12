@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "loudness": {
+    "I": -18,
+    "TP": -1.5,
+    "LRA": 11
+  },
+  "clips": [
+    {
+      "djId": "aiden",
+      "styleId": "edm",
+      "file": "aiden.mp3",
+      "sizeBytes": 65280,
+      "durationSec": 8.08,
+      "sha256": "e9d2f61a439e5f181a68e633c4601de5e73164310b0554be8f2fd171895a8a0c",
+      "promptHash": "64c73322817e73d89e1007df641c6a043c9d92b22529c3ef50b0c0dde8a851b1",
+      "voiceVersion": "qwen3tts-customvoice-0c0e3051",
+      "text": "Welcome to LVX in Radio. Here is a quick voice check before we get back to the music. I promise this introduction is shorter than the settings menu."
+    },
+    {
+      "djId": "dylan",
+      "styleId": "rock",
+      "file": "dylan.mp3",
+      "sizeBytes": 71616,
+      "durationSec": 8.88,
+      "sha256": "7a0f1b5aeefcc2041cab7e88354349b7e0295f946f6ef9f2bbde15546351ad59",
+      "promptHash": "6a0286ff7b7645d9008a41d6b2ca981e2e98e5a7ed72b961b35107c5009a2202",
+      "voiceVersion": "qwen3tts-customvoice-0c0e3051",
+      "text": "Welcome to LVX in Radio. Here is a quick voice check before we get back to the music. I promise this introduction is shorter than the settings menu."
+    },
+    {
+      "djId": "ryan",
+      "styleId": "edm",
+      "file": "ryan.mp3",
+      "sizeBytes": 77376,
+      "durationSec": 9.6,
+      "sha256": "76c2e7fbb44ec66b2db1d1ab88efab165f79d6385665bb2747148afcd5a2ee80",
+      "promptHash": "3e687cb07f8759e74da439127cc93abc9fc7881dcd7b529c333f782fe344bde8",
+      "voiceVersion": "qwen3tts-customvoice-0c0e3051",
+      "text": "Welcome to LVX in Radio. Here is a quick voice check before we get back to the music. I promise this introduction is shorter than the settings menu."
+    },
+    {
+      "djId": "serena",
+      "styleId": "relax",
+      "file": "serena.mp3",
+      "sizeBytes": 86976,
+      "durationSec": 10.8,
+      "sha256": "05316c4221401f055505042d93f5bb168914a2b23a9abbd621b654d22a58056c",
+      "promptHash": "b5790969c3eae909d51fded3a20a206a1fa0cb4c0b207742b2d6d30693d8a739",
+      "voiceVersion": "qwen3tts-customvoice-0c0e3051",
+      "text": "Welcome to LVX in Radio. Here is a quick voice check before we get back to the music. I promise this introduction is shorter than the settings menu."
+    },
+    {
+      "djId": "sohee",
+      "styleId": "relax",
+      "file": "sohee.mp3",
+      "sizeBytes": 76224,
+      "durationSec": 9.44,
+      "sha256": "583502787b9a4550f06d266f439c6d716e1fa65dfe9b1c341ceb75d0cf84cd45",
+      "promptHash": "7d34bfeeba5a278b8c250f466083733399517c2d2463d071c59c1f1c354582d5",
+      "voiceVersion": "qwen3tts-customvoice-0c0e3051",
+      "text": "Welcome to LVX in Radio. Here is a quick voice check before we get back to the music. I promise this introduction is shorter than the settings menu."
+    },
+    {
+      "djId": "vivian",
+      "styleId": "edm",
+      "file": "vivian.mp3",
+      "sizeBytes": 74304,
+      "durationSec": 9.2,
+      "sha256": "d267f13596e1fe95dbc4f9def7766f93508f3132045126a51ffd6582ad46f259",
+      "promptHash": "c6743af9288aba73ddc1245da7fc154af764cc13dc5b42baae4fe9230db2b8f5",
+      "voiceVersion": "qwen3tts-customvoice-0c0e3051",
+      "text": "Welcome to LVX in Radio. Here is a quick voice check before we get back to the music. I promise this introduction is shorter than the settings menu."
+    }
+  ]
+}

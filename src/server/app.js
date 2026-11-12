@@ -92,7 +92,7 @@ function streamEvents(station, request, response, snapshot = () => station.snaps
  * Local API and UI host. Electron can run this unchanged from its main process
  * and point a window at the returned address.
  */
-export function createApp({ station, uiDir, readGpu = async () => null, setup, live, news, voice }) {
+export function createApp({ station, uiDir, readGpu = async () => null, setup, live, news, voice, dj }) {
   const requireVoice = () => {
     if (!voice) throw new HttpError(503, 'The news voice setup is unavailable.');
     return voice;
@@ -101,7 +101,16 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
     if (!news) throw new HttpError(503, 'The news is unavailable.');
     return news;
   };
+  const requireDj = () => { if (!dj) throw new HttpError(503, 'The DJ is unavailable.'); return dj; };
   const routes = {
+    'GET /api/dj': async (request, response) => sendJson(response, 200, await requireDj().settings()),
+    'POST /api/dj/settings': async (request, response) => sendJson(response, 200, await requireDj().configure(await readJson(request))),
+    'GET /api/dj/model': async (request, response) => sendJson(response, 200, await requireDj().modelSnapshot()),
+    'POST /api/dj/model/download': async (request, response) => { await readJson(request); await requireDj().downloadModel(); sendJson(response, 202, await dj.modelSnapshot()); },
+    'POST /api/dj/model/pause': async (request, response) => { await readJson(request); await requireDj().pauseModel(); sendJson(response, 200, await dj.modelSnapshot()); },
+    'POST /api/dj/model/folder': async (request, response) => { const { path } = await readJson(request); if (typeof path !== 'string' || !path.startsWith('/')) throw new HttpError(400, 'Choose an absolute model directory.'); await requireDj().useModelDirectory(path); sendJson(response, 200, await dj.modelSnapshot()); },
+    'GET /api/dj/catalog': async (request, response) => sendJson(response, 200, await requireDj().catalog()),
+    'POST /api/dj/preview': async (request, response) => sendJson(response, 202, await requireDj().preview(await readJson(request))),
     'GET /api/live': (request, response) => sendJson(response, 200, live?.snapshot() ?? { choiceMade:true, enabled:false }),
     'POST /api/live/settings': async (request, response) => {
       if (!live) throw new HttpError(503, 'Live stations are unavailable.');
@@ -212,7 +221,7 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
     },
     'GET /api/engine': async (request, response) => sendJson(response, 200, await station.engineStatus()),
     'GET /api/gpu': async (request, response) => sendJson(response, 200, { percent: await readGpu() }),
-    'GET /api/events': (request, response) => streamEvents(station, request, response, () => ({ ...station.snapshot(), ...(live ? { live:live.snapshot() } : {}), ...(news ? { news:news.snapshot() } : {}) })),
+    'GET /api/events': (request, response) => streamEvents(station, request, response, () => ({ ...station.snapshot(), ...(live ? { live:live.snapshot() } : {}), ...(news ? { news:news.snapshot() } : {}), ...(dj ? { dj:dj.snapshot() } : {}) })),
   };
 
   const serveAudio = async (request, response, trackId, mediaKey) => {
@@ -247,6 +256,12 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
       if (!path) throw new HttpError(404, 'Bulletin not available');
       return sendFile(request, response, path, AUDIO_TYPES['.wav']);
     }
+    const djAudio = /^\/dj-audio\/([a-f0-9]{64})$/.exec(pathname);
+    if (djAudio) {
+      const path = dj?.audioPath(djAudio[1]);
+      if (!path) throw new HttpError(404, 'DJ audio not available');
+      return sendFile(request, response, path, AUDIO_TYPES[extname(path)] ?? AUDIO_TYPES['.wav']);
+    }
     const audio = /^\/audio\/([\w-]+)$/.exec(pathname);
     if (audio) return serveAudio(request, response, audio[1], searchParams.get('v'));
     return serveUi(request, response, pathname);
@@ -262,7 +277,7 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
       const expected = error instanceof HttpError || error instanceof TypeError || error instanceof RangeError;
       const status = error.status ?? (expected ? 400 : 500);
       if (status === 500) console.error(error);
-      sendJson(response, status, { error: error.message });
+      sendJson(response, status, { error: error.message, ...(error.reason ? { reason: error.reason } : {}) });
     });
   });
   return server;

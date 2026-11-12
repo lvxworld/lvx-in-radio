@@ -119,15 +119,22 @@ export class AudioCppEngine {
   #aborted = false;
   #launchVersion = 0;
   #launchedWithVoice = false;
+  #launchedWithSong = false;
+  #warmModel = null;
 
   constructor(config) {
     this.#config = config;
   }
 
   async #launch(version) {
+    this.#warmModel = null;
     const { binary, modelDir, modelFile, vaeFile, modelSpecs, dataDir } = this.#config;
     const tts = this.#voiceConfig();
     this.#launchedWithVoice = Boolean(tts);
+    // Voice-only when the song weights are absent (an LVX-only listener needs no YuE2); lazy_load keeps
+    // YuE2 out of memory until a song job asks for it anyway.
+    const withSong = !this.#config.ttsOnly && (typeof this.#config.songInstalled === 'function' ? this.#config.songInstalled() : true);
+    this.#launchedWithSong = withSong;
     await mkdir(dataDir, { recursive: true });
     const port = await freePort();
     const configPath = join(dataDir, 'engine.json');
@@ -142,14 +149,14 @@ export class AudioCppEngine {
         lazy_load: true,
         model_spec_override: modelSpecs,
         models: [
-          {
+          ...(withSong ? [{
             id: MODEL_ID,
             family: 'yue2',
             task: 'gen',
             mode: 'offline',
             path: modelDir,
             session_options: { 'yue2.model_gguf': modelFile, 'yue2.vae_gguf': vaeFile },
-          },
+          }] : []),
           ...(tts ? [{ id: VOICE_MODEL, family: 'qwen3_tts', task: 'tts', mode: 'offline', path: tts.modelDir, session_options: {} }] : []),
         ],
       }),
@@ -212,6 +219,11 @@ export class AudioCppEngine {
     await this.#starting;
   }
 
+  /** Residency is known only after a successful request on this live process. */
+  isWarm(model = MODEL_ID) {
+    return Boolean(this.#url && this.#process && this.#process.exitCode === null && this.#process.signalCode === null && this.#warmModel === model);
+  }
+
   /** Runs one request (YuE2 unless `model` names the voice) and resolves with the raw engine response. */
   async run(request, { model = MODEL_ID } = {}) {
     this.#aborted = false;
@@ -219,12 +231,19 @@ export class AudioCppEngine {
       if (!this.#voiceConfig()) throw new Error('The news voice is not installed yet.');
       // A server started before the voice arrived does not know it: restart it once.
       if (this.#url && !this.#launchedWithVoice) await this.stop();
+    } else if (this.#url && !this.#launchedWithSong) {
+      // Started voice-only (no song weights then): relaunch once with the song model.
+      await this.stop();
     }
     await this.#ensureStarted();
     if (this.#aborted) throw new EngineAbortedError();
+    if (this.#warmModel !== model) this.#warmModel = null;
     try {
-      return await requestJson(`${this.#url}/v1/tasks/run`, { model, request });
+      const result = await requestJson(`${this.#url}/v1/tasks/run`, { model, request });
+      this.#warmModel = model;
+      return result;
     } catch (error) {
+      this.#warmModel = null;
       throw this.#aborted ? new EngineAbortedError() : error;
     }
   }
@@ -236,6 +255,7 @@ export class AudioCppEngine {
   }
 
   async stop() {
+    this.#warmModel = null;
     this.#launchVersion += 1;
     const child = this.#process;
     if (!child) return;

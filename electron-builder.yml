@@ -12,6 +12,12 @@ extraResources:
     to: engine
   - from: lux
     to: lux
+  # DJ script writer: bundled CPython + mlx_lm.server (scripts/build-dj-llm.sh).
+  - from: vendor/dj-llm
+    to: dj-llm
+    filter:
+      - "**/*"
+      - "!**/.DS_Store"
 mac:
   target:
     - target: dmg
