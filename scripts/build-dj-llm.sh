@@ -10,7 +10,7 @@ PBS_FILE="cpython-${PY_VERSION}+${PBS_TAG}-aarch64-apple-darwin-install_only.tar
 PBS_URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PBS_TAG}/${PBS_FILE}"
 PBS_SHA256=fbf4afef53c2a6b72bb741bc06d5671a9dfaf87bd84e5aa73ac9b3d0d589f14e
 # Bump this when anything below changes; fetch-dj-llm.js compares it with vendor/dj-llm/VERSION.
-BUNDLE_VERSION="dj-llm-2 python-3.12.16+20261026 mlx-0.32.4 mlx-lm-0.32.2 macosx_14_0"
+BUNDLE_VERSION="dj-llm-3 python-3.12.16+20261026 mlx-0.32.4 mlx-lm-0.32.2 macosx_14_0"
 MAC_PLATFORM=macosx_14_0_arm64
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -47,7 +47,7 @@ env -i PATH=/usr/bin:/bin "$PY" -I -m pip check
 P="$STAGE/python"
 SITE="$P/lib/python3.12/site-packages"
 # Prune what a headless, offline server never loads.
-rm -rf "$SITE"/pip "$SITE"/pip-* "$SITE"/setuptools "$SITE"/setuptools-* "$SITE"/_distutils_hack "$SITE"/distutils-precedence.pth
+rm -rf "$SITE"/*.dist-info/sboms "$SITE"/pip "$SITE"/pip-* "$SITE"/setuptools "$SITE"/setuptools-* "$SITE"/_distutils_hack "$SITE"/distutils-precedence.pth
 rm -rf "$P"/include "$P"/share "$SITE"/mlx/include "$SITE"/mlx/share
 rm -rf "$P"/lib/python3.12/ensurepip "$P"/lib/python3.12/idlelib "$P"/lib/python3.12/tkinter "$P"/lib/python3.12/turtledemo \
   "$P"/lib/python3.12/lib2to3 "$P"/lib/python3.12/pydoc_data "$P"/lib/python3.12/test "$P"/lib/python3.12/unittest/test \
