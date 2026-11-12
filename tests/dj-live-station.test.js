@@ -18,7 +18,9 @@ import { newsAfterBulletin } from './fixtures/news-clock.js';
 // isolated copy of the owner's dj-settings.json and require an armed introduction by song 2 or 3.
 
 const GiB = 1024 ** 3;
-const PACKAGED = '/Applications/LVX in Radio.app/Contents/Resources/dj-llm/bin/mlx_lm.server';
+// The runtime v0.2.0 saved (the bundled MLX launcher), and the llama-server that replaced it.
+const OLD_PACKAGED = '/Applications/LVX in Radio.app/Contents/Resources/dj-llm/bin/mlx_lm.server';
+const PACKAGED = '/Applications/LVX in Radio.app/Contents/Resources/dj-llm/llama-server';
 const lineWav = writeWav({ sampleRate: 24000, samples: [Float32Array.from({ length: 24000 }, (_, i) => Math.sin(i / 13) * 0.1)] });
 const listenerConfig = { mix: { 'Lo-fi': 100 }, energy: 30, bpm: 80, dark: 20, melody: true, mood: 'calm', seed: 3 };
 const bundledSongs = ['lux-edm', 'lux-rock', 'lux-pop', 'lux-relax'].flatMap((station) => [1, 2].map((n) => ({ id: `${station}-${n}`, station, title: `Song ${station} ${n}`, durationSec: 60, file: `${station}/${n}.mp3`, sha256: 'a'.repeat(64), sizeBytes: 1000 })));
@@ -29,7 +31,7 @@ const liveStation = (durationSec) => ({
   tracks: liveTitles.map((title, index) => ({ id: `lofi-${index + 1}`, title, url: `https://radio.example/lofi/${index + 1}.mp3`, ...(durationSec === undefined ? {} : { durationSec }) })),
 });
 // The owner's dj-settings.json, verbatim apart from nothing: copied, never read from the real data dir.
-const ownerSettings = { version: 1, enabled: true, minSongs: 1, maxSongs: 1, runtime: { command: PACKAGED, args: [], port: 8765 }, stations: { 'lux-lofi': 'ryan' } };
+const ownerSettings = { version: 1, enabled: true, minSongs: 1, maxSongs: 1, runtime: { command: OLD_PACKAGED, args: [], port: 8765 }, stations: { 'lux-lofi': 'ryan' } };
 
 class FakeEngine {
   constructor() { this.requests = []; }
@@ -191,26 +193,18 @@ test('cadence 1-1 keeps speaking on LVX Live: songs 2 to 5 each get a break', as
 // --- Packaged runtime resolution ---
 
 /**
- * The installed app's layout (spaces included): bin/mlx_lm.server is the same /bin/sh launcher that
- * scripts/build-dj-llm.sh writes, exec'ing ../python/bin/python3.12 -I -B -m mlx_lm.server. Here that
- * "python" is a shell stub running a fake OpenAI-compatible writer on Node.
+ * The installed app's layout (spaces included): Resources/dj-llm/llama-server, here a shell stub
+ * running a fake OpenAI-compatible writer on Node.
  */
 async function fakeLauncher(root) {
   const resources = join(root, 'Applications', 'LVX in Radio.app', 'Contents', 'Resources', 'dj-llm');
-  await mkdir(join(resources, 'bin'), { recursive: true });
-  await mkdir(join(resources, 'python', 'bin'), { recursive: true });
-  const launcher = join(resources, 'bin', 'mlx_lm.server');
+  await mkdir(resources, { recursive: true });
+  const launcher = join(resources, 'llama-server');
   await writeFile(launcher, `#!/bin/sh
-# LVX in Radio DJ writer: the bundled Python runs mlx_lm.server, isolated from the system.
 here=$(cd "$(dirname "$0")" && pwd)
-exec "$here/../python/bin/python3.12" -I -B -m mlx_lm.server "$@"
+exec "${process.execPath}" "$here/fake-llama.mjs" "$@"
 `);
-  const python = join(resources, 'python', 'bin', 'python3.12');
-  await writeFile(python, `#!/bin/sh
-here=$(cd "$(dirname "$0")" && pwd)
-exec "${process.execPath}" "$here/fake-mlx.mjs" "$@"
-`);
-  await writeFile(join(resources, 'python', 'bin', 'fake-mlx.mjs'), `import http from 'node:http';
+  await writeFile(join(resources, 'fake-llama.mjs'), `import http from 'node:http';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 const argv = process.argv.slice(2);
@@ -232,12 +226,11 @@ http.createServer((request, response) => {
 process.on('SIGTERM', () => process.exit(0));
 `);
   await chmod(launcher, 0o755);
-  await chmod(python, 0o755);
   return { launcher, launches: join(resources, 'launches.jsonl') };
 }
 
 test('a saved runtime pointing at the installed app resolves to this app\'s bundled launcher', () => {
-  const moved = '/Volumes/LVX in Radio/LVX in Radio.app/Contents/Resources/dj-llm/bin/mlx_lm.server';
+  const moved = '/Volumes/LVX in Radio/LVX in Radio.app/Contents/Resources/dj-llm/llama-server';
   assert.deepEqual(resolveDjRuntime({ env: {}, bundledCommand: moved, saved: ownerSettings.runtime }), { command: moved, args: [], port: 8765 });
   assert.deepEqual(resolveDjRuntime({ env: {}, bundledCommand: PACKAGED, saved: ownerSettings.runtime }), { command: PACKAGED, args: [], port: 8765 });
 });
@@ -251,8 +244,9 @@ test('the packaged launcher (path with spaces) is spawned and writes the Live st
   await f.tune();
   await armedBySongThree(f);
   const launches = (await readFile(launchLog, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
-  assert.equal(launches.length, 1, 'the bundled launcher was started once, not the stale /Applications path or python3');
-  assert.ok(launches[0].argv.slice(0, 4).join(' ') === '-I -B -m mlx_lm.server' && launches[0].argv.includes('--model') && launches[0].argv.includes(String(port)), JSON.stringify(launches[0].argv));
+  assert.equal(launches.length, 1, 'the bundled llama-server was started once, not the saved v0.2.0 MLX launcher');
+  const { argv } = launches[0];
+  assert.ok(argv[argv.indexOf('--model') + 1].endsWith('/Qwen3.5-4B-Q4_K_M.gguf') && argv.includes(String(port)) && argv.includes('--jinja'), JSON.stringify(argv));
   const last = f.dj.snapshot().lastLine ?? f.dj.snapshot().last;
   assert.ok(last, 'a line was recorded');
   assert.notEqual(last.source, 'template', `the writer line was used, not the template fallback (${last.source})`);

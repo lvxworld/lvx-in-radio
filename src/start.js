@@ -73,7 +73,7 @@ export async function startRadio(config, { wrapEngine = engine => engine } = {})
   });
   await news.load();
   news.on('change', () => station.emit('change'));
-  const djModelFolder = resolve(process.env.LVX_DJ_LLM_DIR ?? join(config.engine.dataDir, 'models/Qwen3.5-4B-4bit'));
+  const djModelFolder = resolve(process.env.LVX_DJ_LLM_DIR ?? join(config.engine.dataDir, 'models/Qwen3.5-4B-GGUF'));
   const djModelConfig = { dataDir: join(config.engine.dataDir, 'dj-llm'), modelDir: djModelFolder, binary: config.engine.binary, modelSpecs: config.engine.modelSpecs };
   const djModel = new ModelSetup(djModelConfig, { files: djLlmManifest.files, components: [] });
   await djModel.initialize();

@@ -392,7 +392,7 @@ http.createServer(async (req, res) => {
   res.end(JSON.stringify({ choices: [{ message: { content: 'A fake writer line.' } }] }));
 }).listen(port, '127.0.0.1');
 `);
-  const writer = new DjLlm({ command: process.execPath, args: [script], port, modelDir: root });
+  const writer = new DjLlm({ command: process.execPath, args: [script], port, modelPath: join(root, 'model.gguf') });
   t.after(async () => { await writer.close(); await rm(root, { recursive: true, force: true }); });
   assert.equal(writer.isWarm(), false);
   assert.equal(await writer.complete({ system: 'test', prompt: 'test' }), 'A fake writer line.');

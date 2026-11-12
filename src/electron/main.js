@@ -27,7 +27,7 @@ function radioConfig() {
   const dataDir = process.env.LVX_DATA_DIR ?? app.getPath('userData');
   const engineDir = app.isPackaged ? join(process.resourcesPath, 'engine') : join(ROOT, 'vendor/audio.cpp');
   const packaged = app.isPackaged
-    ? { luxDir: join(process.resourcesPath, 'lux'), modelDir: join(dataDir, 'models'), djLlmCommand: join(process.resourcesPath, 'dj-llm/bin/mlx_lm.server') }
+    ? { luxDir: join(process.resourcesPath, 'lux'), modelDir: join(dataDir, 'models'), djLlmCommand: join(process.resourcesPath, 'dj-llm/llama-server') }
     : {};
   const config = loadConfig(process.env, {
     dataDir,

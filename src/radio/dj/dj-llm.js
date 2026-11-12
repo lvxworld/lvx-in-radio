@@ -7,11 +7,15 @@ import { setTimeout as delay } from 'node:timers/promises';
 const STOP_AFTER_MS = 60_000;
 const STARTUP_MS = 60_000;
 
-/** Small owner for an OpenAI-compatible local writer process. */
+// The KV cache follows the context size; the writer prompt and its line fit well inside 8k tokens
+// (the model advertises 262k, which would reserve memory for nothing).
+const CONTEXT_TOKENS = 8192;
+
+/** Small owner for the local llama-server process that writes DJ lines. */
 export class DjLlm {
-  #command; #args; #port; #modelDir; #log; #record; #child = null; #starting = null; #idle = null; #closed = false; #ready = false;
-  constructor({ command = 'python3', args = ['-m', 'mlx_lm.server'], port = 8765, modelDir, recordPath, log = () => {} } = {}) {
-    this.#command = command; this.#args = args; this.#port = port; this.#modelDir = modelDir; this.#record = recordPath; this.#log = log;
+  #command; #args; #port; #modelPath; #log; #record; #child = null; #starting = null; #idle = null; #closed = false; #ready = false;
+  constructor({ command = 'llama-server', args = [], port = 8765, modelPath, recordPath, log = () => {} } = {}) {
+    this.#command = command; this.#args = args; this.#port = port; this.#modelPath = modelPath; this.#record = recordPath; this.#log = log;
   }
   get port() { return this.#port; }
   isWarm() { return Boolean(this.#ready && this.#child && this.#child.exitCode === null && this.#child.signalCode === null); }
@@ -26,11 +30,11 @@ export class DjLlm {
     let record;
     try { record = JSON.parse(await readFile(this.#record, 'utf8')); } catch { return; }
     await rm(this.#record, { force: true });
-    if (!Number.isInteger(record.pid) || record.port !== this.#port || record.modelDir !== this.#modelDir) return;
+    if (!Number.isInteger(record.pid) || record.port !== this.#port || record.model !== this.#modelPath) return;
     let args = '';
     try { args = execFileSync('ps', ['-o', 'args=', '-p', String(record.pid)], { encoding: 'utf8' }).trim(); } catch { return; }
     const command = basename(this.#command);
-    if (!args || !args.includes(command) || !args.includes(`--port ${this.#port}`) || !args.includes(`--model ${this.#modelDir}`)) return;
+    if (!args || !args.includes(command) || !args.includes(`--port ${this.#port}`) || !args.includes(`--model ${this.#modelPath}`)) return;
     try { process.kill(record.pid, 'SIGTERM'); } catch { return; }
     await new Promise((resolve) => setTimeout(resolve, 500));
     try { process.kill(record.pid, 0); process.kill(record.pid, 'SIGKILL'); } catch {}
@@ -44,16 +48,13 @@ export class DjLlm {
       let occupied = false;
       try { const response = await fetch(`http://127.0.0.1:${this.#port}/health`, { signal: AbortSignal.timeout(500) }); occupied = response.ok; } catch {}
       if (occupied) throw new Error(`DJ LLM port ${this.#port} is already serving another process`);
-      const llama = /llama-server/i.test(basename(this.#command));
-      const args = llama
-        ? [...this.#args, '--model', this.#modelDir, '--host', '127.0.0.1', '--port', String(this.#port), '--jinja', '--chat-template-kwargs', '{"enable_thinking":false}', '--parallel', '1']
-        : [...this.#args, '--model', this.#modelDir, '--host', '127.0.0.1', '--port', String(this.#port), '--chat-template-args', '{"enable_thinking":false}', '--decode-concurrency', '1', '--prompt-concurrency', '1'];
-      const child = spawn(this.#command, args, { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, HF_HUB_OFFLINE: '1' } });
+      const args = [...this.#args, '--model', this.#modelPath, '--host', '127.0.0.1', '--port', String(this.#port), '--jinja', '--chat-template-kwargs', '{"enable_thinking":false}', '--parallel', '1', '--ctx-size', String(CONTEXT_TOKENS), '--no-webui'];
+      const child = spawn(this.#command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
       child.stdout.on('data', (chunk) => this.#log(String(chunk).trimEnd()));
       child.stderr.on('data', (chunk) => this.#log(String(chunk).trimEnd()));
       child.once('error', (error) => this.#log(`DJ writer process error: ${error.message}`));
       this.#child = child;
-      if (this.#record && child.pid) await writeFile(this.#record, JSON.stringify({ pid: child.pid, port: this.#port, modelDir: this.#modelDir, command: this.#command }));
+      if (this.#record && child.pid) await writeFile(this.#record, JSON.stringify({ pid: child.pid, port: this.#port, model: this.#modelPath, command: this.#command }));
       child.once('exit', async () => {
         if (this.#child === child) { this.#child = null; this.#ready = false; }
         if (this.#record) {
@@ -77,7 +78,7 @@ export class DjLlm {
     try {
       const response = await fetch(`http://127.0.0.1:${this.#port}/v1/chat/completions`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
-        body: JSON.stringify({ model: this.#modelDir, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: 0.6, max_tokens: maxTokens, stream: false, chat_template_kwargs: { enable_thinking: false } }),
+        body: JSON.stringify({ model: this.#modelPath, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: 0.6, max_tokens: maxTokens, stream: false, chat_template_kwargs: { enable_thinking: false } }),
       });
       if (!response.ok) throw new Error(`DJ LLM HTTP ${response.status}: ${(await response.text()).slice(0, 400)}`);
       const body = await response.json();

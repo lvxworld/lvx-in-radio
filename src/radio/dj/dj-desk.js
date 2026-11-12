@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { readWav } from '../../engine/wav.js';
 import { buildDjWriterRequest, djTitle, loadDjPrompts, nextSongMoodWord } from '../dj/prompts.js';
 import { DjLlm } from './dj-llm.js';
+import djLlmManifest from '../../engine/dj-llm-manifest.json' with { type: 'json' };
 import { DJ_IDS, luxStationDj, styleFor } from './dj-style.js';
 import { PREVIEW_TEXT, VOICE_VERSION, loadBundledPreviews } from './dj-preview.js';
 
@@ -24,25 +25,30 @@ const LOG_MAX_BYTES = 256 * 1024;
 const LUX_LINE_REUSE = 2;
 const LUX_LINE_VARIANTS = 10;
 const words = (text) => text.trim().split(/\s+/).filter(Boolean);
-const LEGACY_RUNTIME = { command: 'python3', args: ['-m', 'mlx_lm.server'] };
-const BUNDLED_LAUNCHER = /(^|\/)dj-llm\/bin\/mlx_lm\.server$/;
+// llama-server from PATH (Homebrew's llama.cpp) when no bundled copy exists.
+const DEFAULT_RUNTIME = { command: 'llama-server', args: [] };
+// Runtimes saved by v0.2.0 (python3 -m mlx_lm.server, or its bundled launcher) and bundled
+// llama-server paths: defaults, not choices, so they never shadow the bundle.
+const OLD_DEFAULTS = [{ command: 'python3', args: ['-m', 'mlx_lm.server'] }, DEFAULT_RUNTIME];
+const BUNDLED_LAUNCHER = /(^|\/)dj-llm\/(bin\/mlx_lm\.server|llama-server)$/;
+// The writer model is one GGUF file inside the setup's folder.
+export const WRITER_MODEL_FILE = djLlmManifest.files[0].path;
 
 /**
  * Which writer process the DJ runs. LVX_DJ_LLM_COMMAND wins, then a runtime the listener set
- * through the API, then the launcher bundled with the app (vendor/dj-llm or Resources/dj-llm),
- * then python3 -m mlx_lm.server. A saved runtime equal to an old default (python3, or a bundled
- * launcher from wherever the app used to live) is not a choice and does not shadow the bundle.
+ * through the API, then the llama-server bundled with the app (vendor/dj-llm or Resources/dj-llm),
+ * then llama-server from PATH.
  */
 export function resolveDjRuntime({ env = process.env, bundledCommand = null, saved = null } = {}) {
   const port = Number(env.LVX_DJ_LLM_PORT ?? saved?.port ?? 8765);
-  if (env.LVX_DJ_LLM_COMMAND) return { command: env.LVX_DJ_LLM_COMMAND, args: [...LEGACY_RUNTIME.args], port };
-  const legacy = saved?.command === LEGACY_RUNTIME.command && JSON.stringify(saved?.args ?? LEGACY_RUNTIME.args) === JSON.stringify(LEGACY_RUNTIME.args);
+  if (env.LVX_DJ_LLM_COMMAND) return { command: env.LVX_DJ_LLM_COMMAND, args: [], port };
+  const old = OLD_DEFAULTS.some((entry) => saved?.command === entry.command && JSON.stringify(saved?.args ?? entry.args) === JSON.stringify(entry.args));
   const bundled = typeof saved?.command === 'string' && BUNDLED_LAUNCHER.test(saved.command);
-  if (typeof saved?.command === 'string' && saved.command.trim() && !legacy && !bundled) {
+  if (typeof saved?.command === 'string' && saved.command.trim() && !old && !bundled) {
     return { command: saved.command, args: Array.isArray(saved.args) ? [...saved.args] : [], port };
   }
   if (bundledCommand) return { command: bundledCommand, args: [], port };
-  return { command: LEGACY_RUNTIME.command, args: [...LEGACY_RUNTIME.args], port };
+  return { command: DEFAULT_RUNTIME.command, args: [], port };
 }
 
 function rssBytes(dataDir) {
@@ -490,7 +496,7 @@ export class DjDesk extends EventEmitter {
         if (!line && tier === 1) {
           const model = await this.#model.snapshot();
           if (this.#llm && this.#llmModelDir !== model.directory) { await this.#llm.close(); this.#llm = null; }
-          this.#llm ??= new DjLlm({ ...this.#settings.runtime, modelDir: model.directory, recordPath: join(this.#dataDir, 'dj-llm-process.json'), log: (entry) => console.log('[dj-llm]', entry) });
+          this.#llm ??= new DjLlm({ ...this.#settings.runtime, modelPath: join(model.directory, WRITER_MODEL_FILE), recordPath: join(this.#dataDir, 'dj-llm-process.json'), log: (entry) => console.log('[dj-llm]', entry) });
           this.#llmModelDir = model.directory;
           line = await this.#lineText(context, style, tier, active.controller.signal);
           const after = await this.#freeMemory();

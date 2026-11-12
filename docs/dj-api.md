@@ -14,7 +14,7 @@ Returns the persisted global settings and current readiness:
   "enabled": false,
   "minSongs": 2,
   "maxSongs": 4,
-  "runtime": { "command": "mlx_lm.server", "args": [], "port": 8765 },
+  "runtime": { "command": "llama-server", "args": [], "port": 8765 },
   "ready": false,
   "status": "off",
   "missing": ["llm", "voice"],
@@ -26,7 +26,7 @@ Returns the persisted global settings and current readiness:
 `status` is `off | waiting | ready | error`; `missing` contains `llm` and/or
 `voice`. `runtime.args` are the argv entries passed to the configured command;
 the server is bound to loopback. The runtime ships in the app as
-`Resources/dj-llm/bin/mlx_lm.server` (built into `vendor/dj-llm/` by
+`Resources/dj-llm/llama-server` (fetched into `vendor/dj-llm/` by
 `npm run fetch-dj-llm`); `LVX_DJ_LLM_COMMAND` overrides it. In this checkout, `npm start` uses the sibling YuE2 binary,
 which does not include Qwen3-TTS; it can exercise writer/model setup but cannot
 synthesize DJ audio. Use the app with shipped audio.cpp or `npm run demo`
@@ -62,7 +62,7 @@ Returns the ordinary `ModelSetup.snapshot()` shape for the pinned LLM manifest:
   "ready": false,
   "components": [{ "name": "DJ language model", "ready": false }],
   "total": 0,
-  "directory": "/.../models/Qwen3.5-4B-4bit"
+  "directory": "/.../models/Qwen3.5-4B-GGUF"
 }
 ```
 
