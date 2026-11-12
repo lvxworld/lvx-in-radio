@@ -1,13 +1,13 @@
-LVX in Radio v0.1.11 improves station sharing and adds generation controls to the mini player.
+LVX in Radio v0.1.12 brings a DJ to the radio.
 
-- **QR codes carry your words.** Sharing a station includes the active text from **Describe it in words**. Opening the picture restores the description and enables it, together with the other station settings and the original first-song seed.
-- **Long descriptions fit too.** Codes with longer text use compact encoding, tested with 1000 characters and both vocals and instrumental settings. Existing QR codes still open. To open the new compact codes, the recipient needs v0.1.11 or later.
-- **Share the station you are listening to.** Sharing from On air uses that station’s saved settings, even if Create contains a different draft.
-- **Stop or resume generating from the mini player.** A small power button at the bottom left uses the same colours, hints and generation control as On air, without the outer crown. Stopping generation keeps your library playing. The control reflects the current station and is disabled when its music model is unavailable.
+- **Meet the LVX DJ.** Every two to four songs a DJ talks over the end of the song on air and introduces the next one by title and mood. The music ducks under the voice. Everything runs on your Mac: a small local model writes the line and the LVX News voice reads it.
+- **Six DJs to choose from.** Serena, Sohee, Vivian, Ryan, Aiden and Dylan. Each station gets a default that suits its style, and you can pick another or none from the DJ chip. The LVX stations have DJs too.
+- **Set it up in Settings → DJs.** Turn DJs on, choose how often they talk, and listen to each DJ before choosing. The DJ needs the News voice and a writer model (about 3 GB), downloaded once, or found in your Hugging Face cache if you already have it.
+- **A single style at 100%.** A station can now use one style alone; styles at zero no longer count.
 
 1. Download the DMG and drag **LVX in Radio** into Applications.
 2. Open it. macOS blocks it the first time because the app is not notarized: go to **System Settings → Privacy & Security → Open Anyway**, then confirm.
 3. The LVX stations play at once. To make your own, accept the model terms and download the model (about 4.5 GB), or point to a folder that already holds it.
-4. Optional: turn on **LVX News** from the NEWS chip (it asks you to install the voice once), and **LVX Live** to hear new songs and stations as they are published. The app asks on first launch, and you can change it any time in Settings.
+4. Optional: turn on **LVX News** from the NEWS chip (it asks you to install the voice once), the **DJ** in Settings → DJs, and **LVX Live** to hear new songs and stations as they are published. The app asks about Live on first launch, and you can change any of them in Settings.
 
 Requires a Mac with Apple Silicon. Generating needs plenty of memory: it was developed on an M2 Max.
