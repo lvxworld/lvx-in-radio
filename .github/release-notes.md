@@ -1,4 +1,4 @@
-LVX in Radio v0.1.12 brings a DJ to the radio.
+LVX in Radio v0.2.0 brings a DJ to the radio.
 
 - **Meet the LVX DJ.** Every two to four songs a DJ talks over the end of the song on air and introduces the next one by title and mood. The music ducks under the voice. Everything runs on your Mac: a small local model writes the line and the LVX News voice reads it.
 - **Six DJs to choose from.** Serena, Sohee, Vivian, Ryan, Aiden and Dylan. Each station gets a default that suits its style, and you can pick another or none from the DJ chip. The LVX stations have DJs too.
