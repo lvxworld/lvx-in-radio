@@ -57,3 +57,32 @@ test('talk-over decision handles exact start, lateness, pause, rewind and hard s
   assert.deepEqual(decideTalkOver({ plan, phase: 'speaking', position: plan.hardStopAt }), { action: 'stop', reason: 'song-ending' });
   assert.deepEqual(decideTalkOver({ plan, phase: 'ducking', position: plan.duckAt - 1 }), { action: 'release', reason: 'rewound' });
 });
+
+// A fake Web Audio context: every node has every param, and records nothing it does not need.
+function fakeAudio() {
+  const param = () => ({ value: 1, cancelScheduledValues() {}, setValueAtTime(v) { this.value = v; }, setTargetAtTime(v) { this.value = v; } });
+  const node = () => ({ connect() {}, disconnect() {}, frequency: param(), gain: param(), Q: param(), threshold: param(), ratio: param(), attack: param(), release: param(), knee: param() });
+  const ctx = { currentTime: 0, sampleRate: 8000, createGain: node, createBiquadFilter: node, createDynamicsCompressor: node, createConvolver: node, createMediaElementSource: node, createBuffer: () => ({ copyToChannel() {} }) };
+  const elements = [];
+  const createAudio = () => { const el = { paused: true, play() { this.paused = false; return Promise.resolve(); }, pause() { this.paused = true; }, removeAttribute() {} }; elements.push(el); return el; };
+  return { ctx, elements, createAudio };
+}
+
+test('a DJ sample is never cut by arming the next intro or by the news, and never erases an armed intro', async () => {
+  const { DjTalkOver } = await import('../src/ui/assets/dj-audio.js');
+  const { ctx, elements, createAudio } = fakeAudio();
+  const dj = new DjTalkOver({ ctx, destination: ctx.createGain(), createAudio });
+  const plan = dj.arm({ clip: { id: 'line', url: '/dj-audio/line', durationSec: 10 }, songDurationSec: 120 });
+  dj.preview({ clip: { id: 'sample', url: '/dj-audio/sample' } });
+  const sample = elements.at(-1);
+  assert.equal(dj.previewing, true);
+  assert.equal(dj.plan, plan, 'the armed intro keeps its plan');
+  dj.arm({ clip: { id: 'line-2', url: '/dj-audio/line-2', durationSec: 10 }, songDurationSec: 120 });
+  dj.cancel('news');
+  dj.tick({ position: 5 });
+  assert.equal(sample.paused, false, 'the sample is still playing');
+  assert.equal(dj.previewing, true);
+  sample.onended();
+  assert.equal(dj.previewing, false);
+  assert.equal(dj.tick({ position: dj.plan.startAt }), 'start', 'the intro still airs after the sample');
+});

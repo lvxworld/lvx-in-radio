@@ -54,6 +54,8 @@ export function parseDuo(raw, hosts) {
 export function validateDuo(turns, { title, hosts, stationName = '', genres = [] }) {
   if (!Array.isArray(turns) || turns.length < 2 || turns.length > 4) return false;
   if (turns.some((turn, index) => turn.host !== index % 2 || words(turn.text).length < 4 || words(turn.text).length > 30)) return false;
+  // A host saying their own name sounds like a label read aloud.
+  if (turns.some((turn) => new RegExp(`\\b${escape(hosts[turn.host].name)}\\b`, 'i').test(turn.text))) return false;
   const all = turns.map((turn) => turn.text).join(' ');
   const count = words(all).length;
   if (count < 35 || count > 80 || occurrences(all, title) !== 1 || occurrences(turns.at(-1).text, title) !== 1) return false;

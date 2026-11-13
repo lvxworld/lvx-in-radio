@@ -47,6 +47,7 @@ test('a two-host break is parsed without spoken name labels and checked', () => 
   assert.equal(broken((list) => { list[0].text += ` ${title} is lovely.`; return list; }), false, 'title only in the handoff');
   assert.equal(broken((list) => { list[2].text = 'Fair enough, it is only Tuesday after all, and we are fine.'; return list; }), false, 'no invented names or days');
   assert.equal(broken((list) => list.slice(0, 1)), false, 'at least two turns');
+  assert.equal(broken((list) => { list[0].text = 'This is Serena keeping the evening slower than planned tonight.'; return list; }), false, 'a host never says their own name');
   assert.equal(broken((list) => { list[2].text = 'Fair enough, our Pop corner at Slow Neon deserves a quiet hour as well.'; return list; }), true, 'genres and the station are known names');
 });
 

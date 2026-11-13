@@ -11,7 +11,8 @@ import djLlmManifest from '../../engine/dj-llm-manifest.json' with { type: 'json
 import { DJ_IDS, luxStationDj, styleFor } from './dj-style.js';
 import { PREVIEW_TEXT, VOICE_VERSION, loadBundledPreviews } from './dj-preview.js';
 
-const LINE_VERSION = 'dj-duo-v1';
+// v2: two-host breaks made before hosts stopped naming themselves are never replayed.
+const LINE_VERSION = 'dj-duo-v2';
 // A break mentions at most one news story per hour, from the newest bulletin, never the same one twice.
 const NEWS_EVERY_MS = 60 * 60_000;
 const MARGIN_SEC = 30;
