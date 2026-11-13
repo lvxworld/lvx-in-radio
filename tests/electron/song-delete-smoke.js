@@ -11,7 +11,7 @@ import { Library, bucketFor } from '../../src/radio/library.js';
 import { StationStore } from '../../src/radio/stations.js';
 import { writeWav } from '../../src/engine/wav.js';
 
-const root = resolve(import.meta.dirname, '../..');
+const root = process.env.LVX_TEST_ROOT ?? resolve(import.meta.dirname, '../..');
 const data = await mkdtemp(join(tmpdir(), 'lvx-delete-ui-'));
 app.setPath('userData', join(data, 'chromium'));
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -27,7 +27,7 @@ try {
   const saved = await stations.open(config, { chosenName: 'Deletion test' });
   const wav = writeWav({ sampleRate: 24000, samples: [Float32Array.from({ length: 24000 * 60 }, (_, i) => .01 * Math.sin(i / 13))] });
   for (let i = 0; i < 2; i++) await library.add({ id: `delete-test-${i}`, title: i ? 'The next song' : 'A song to delete', stationId: saved.id, bucket: bucketFor(config), generation: config, durationSec: 60, createdAt: new Date(i * 1000).toISOString() }, wav);
-  radio = await startRadio({ ...loadConfig({}, { dataDir: data, modelDir: join(data, 'missing'), engineBinary: join(data, 'missing-engine'), modelSpecs: data }), port: 0 });
+  radio = await startRadio({ ...loadConfig({}, { dataDir: data, modelDir: join(data, 'missing'), engineBinary: join(data, 'missing-engine'), modelSpecs: data }), uiDir: join(root, 'src/ui'), port: 0 });
   const api = async (path, body) => { const response = await fetch(radio.address + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); assert.ok(response.ok, await response.clone().text()); return response.json(); };
   await api('/api/live/settings', { enabled: false, url: '', refreshMinutes: 30 });
   await api('/api/tune', { stationId: saved.id, config, fromLibrary: true, paused: true });

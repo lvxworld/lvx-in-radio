@@ -53,6 +53,8 @@ song only and returns `{ trackId, freedBytes, nextTrackId, sessionId }`. Unknown
 or catalog IDs are rejected with HTTP 400. `node --test tests/song-delete.test.js`
 covers files on disk, restart, queue behavior, disk errors and this local API;
 it requires permission to listen on loopback, with no model or external service.
+The Electron deletion check also accepts `LVX_TEST_ROOT` pointing to a built
+`app.asar` to exercise its packaged HTML, scripts and styles.
 
 ### DJ audition clips
 
