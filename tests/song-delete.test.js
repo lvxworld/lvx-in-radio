@@ -78,6 +78,36 @@ test('a disk error rejects deletion without reporting success or removing the so
   assert.ok(station.snapshot().tracks.some(track => track.id === 'song-1'));
 });
 
+test('an invalid sidecar leaves the audio and library entry intact when deletion fails', async t => {
+  const { library, station } = await fixture(t);
+  const audio = library.audioPath('song-1');
+  const temporary = audio.replace(/\.wav$/, '.tmp');
+  await mkdir(temporary); await writeFile(join(temporary, 'blocked'), 'keep');
+  await assert.rejects(station.deleteSong('song-1'));
+  assert.equal((await stat(audio)).size, wav.length);
+  assert.ok(library.get('song-1'));
+  assert.ok(station.snapshot().tracks.some(track => track.id === 'song-1'));
+});
+
+test('deletion and in-flight metadata updates never recreate a removed song on restart', async t => {
+  const { root, library } = await fixture(t);
+  for (let i = 0; i < 30; i++) {
+    const id = `race-${i}`;
+    await library.add({ id, title: id, bucket: bucketFor(config), generation: config, createdAt: new Date().toISOString() }, wav);
+    const audio = library.audioPath(id);
+    const operations = i % 2
+      ? [library.update(id, { liked: true }), library.deleteSong(id)]
+      : [library.deleteSong(id), library.update(id, { liked: false })];
+    const outcomes = await Promise.allSettled(operations);
+    assert.equal(outcomes[i % 2 ? 1 : 0].status, 'fulfilled');
+    assert.equal(library.get(id), null);
+    await assert.rejects(stat(audio), { code: 'ENOENT' });
+    await assert.rejects(stat(audio.replace(/\.wav$/, '.json')), { code: 'ENOENT' });
+  }
+  const restored = new Library(join(root, 'library')); await restored.load();
+  assert.equal(restored.size, 3);
+});
+
 test('the deletion API refuses unknown songs and deletes generated audio immediately', async t => {
   const { station, library, root } = await fixture(t);
   const server = createApp({ station, uiDir: root });
