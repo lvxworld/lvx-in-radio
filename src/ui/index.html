@@ -880,7 +880,7 @@ class Component extends DCLogic {
       if(clip&&key!==this.djArmedKey&&clip.durationSec&&this.currentDuration()){this.djArmedKey=key;dj.arm({clip,songDurationSec:this.currentDuration(),preset:this.djPreset(clip.style)})}}
     dj.tick({position:this.player.currentTime,playing:may});this.djSyncLive()}
   djSyncLive=()=>{const live=window.LvxDjFlow.djLiveState({phase:this.dj.phase,hasPlan:!!this.dj.plan});if(live!==(this.state.djLive||''))this.setState({djLive:live})}
-  playDjPreview=({audioId,style})=>{this.initAudio();if(!this.ctx||!this.dj){this.toastMsg('The DJ sample needs audio, which is not available.');return}this.ctx.resume();this.dj.preview({clip:{id:audioId,url:'/dj-audio/'+encodeURIComponent(audioId)},preset:this.djPreset(style)})}
+  playDjPreview=({audioId,style})=>{this.initAudio();if(!this.ctx||!this.dj){this.toastMsg('The DJ sample needs audio, which is not available.');return}this.ctx.resume();if(!this.state.playing){/* stopped radio: the master is silent, so open it for the voice (the music player stays paused) */const t=this.ctx.currentTime;this.master.gain.cancelScheduledValues(t);this.master.gain.setTargetAtTime(this.vol(),t,.05)}this.dj.preview({clip:{id:audioId,url:'/dj-audio/'+encodeURIComponent(audioId)},preset:this.djPreset(style)})}
   djMenuToggle=()=>{const open=!this.state.djMenu;this.setState({djMenu:open});if(open)fetch('/api/dj').then(r=>r.json()).then(dj=>this.setState({dj:{...this.state.dj,...dj}})).catch(()=>{})};
   djMenuClose=()=>this.setState({djMenu:false});
   djOpenSettings=()=>{this.setState({djMenu:false});this.liveSettings?.openPage('dj')};
