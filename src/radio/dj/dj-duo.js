@@ -70,16 +70,31 @@ export function buildNewsRequest(prompts, story, { retry = false } = {}) {
   return { system: prompts.news, prompt, maxTokens: 80 };
 }
 
+// Words that may open a sentence without being a name (they are never facts on their own).
+const STARTERS = new Set(`a an and as at but by for from here in it its meanwhile now on one so still that the then there these they this those today tonight we what when while yes also after before elsewhere finally first next not no well just even only all both if how why who you your our my he she his her their some many more big good great quite it's that's there's here's let's what's i i'm thanks thank over okay right coming time up
+il lo la i gli le un una uno e ma in nel nella nei negli oggi ora intanto secondo questa questo poi infine anche dopo prima grazie passiamo adesso`.split(/\s+/));
+
+/**
+ * True when every number and every capitalised word in `text` is in `source` (or in `allowed`):
+ * nothing named or counted that the feed did not say. Sentence openers may be ordinary words.
+ */
+export function groundedIn(text, source, allowed = []) {
+  const known = new Set(`${source} ${allowed.join(' ')}`.toLowerCase().match(/[\p{L}'-]+/gu)?.map((word) => word.replace(/'s$/, '')) ?? []);
+  if ((text.match(/\d[\d.,]*/g) ?? []).some((number) => !source.includes(number.replace(/[.,]$/, '')))) return false;
+  return [...text.matchAll(/\b(\p{Lu}[\p{L}'-]*)/gu)].every((match) => {
+    const word = match[1].toLowerCase().replace(/'s$/, '');
+    const opener = match.index === 0 || /[.!?:]\s*$/.test(text.slice(0, match.index));
+    return known.has(word) || (opener && STARTERS.has(word));
+  });
+}
+
 /** Every number and every capitalised word inside the sentence must be in the source; it starts by crediting it. */
 export function validateNewsLine(text, story) {
   if (typeof text !== 'string') return false;
   const line = text.trim();
-  const source = `${story.source} ${story.title} ${story.summary ?? ''}`;
-  const known = new Set(`${source} reports says that`.toLowerCase().match(/[\p{L}'-]+/gu)?.map((word) => word.replace(/'s$/, '')) ?? []);
   const count = words(line).length;
-  if (count < 8 || count > 35 || !line.toLowerCase().startsWith(story.source.split(' ')[0].toLowerCase())) return false;
-  if (/[\[\]<>*_`#{}]/.test(line) || (line.match(/\d[\d.,]*/g) ?? []).some((number) => !source.includes(number.replace(/[.,]$/, '')))) return false;
-  return [...line.matchAll(/(?<!^)\b([A-Z][\p{L}'-]*)/gu)].every((match) => known.has(match[1].toLowerCase().replace(/'s$/, '')));
+  if (count < 8 || count > 35 || !line.toLowerCase().startsWith(story.source.split(' ')[0].toLowerCase()) || /[\[\]<>*_`#{}]/.test(line)) return false;
+  return groundedIn(line, `${story.source} ${story.title} ${story.summary ?? ''}`, ['reports', 'says', 'that']);
 }
 
 /** What A says when the writer cannot retell a story safely: the headline, word for word. */

@@ -14,6 +14,7 @@ import { StationStore } from './radio/stations.js';
 import { NEWS_FEEDS, fetchFrom, probeFeed } from './radio/news/news-feed.js';
 import { NEWS_STATION, NewsDesk } from './radio/news/news-desk.js';
 import { mixBulletin } from './radio/news/news-mix.js';
+import { writeNewsScript } from './radio/news/news-writer.js';
 import { createSynthesizer, renderParts, STYLES, VOICE_MODEL_ID } from './radio/news/news-voice.js';
 import { DjDesk } from './radio/dj/dj-desk.js';
 import { createApp, listen } from './server/app.js';
@@ -60,6 +61,8 @@ export async function startRadio(config, { wrapEngine = engine => engine } = {})
       return { ready, missing: ready ? [] : ['news-voice'] };
     },
     fetchStories: fetchFrom,
+    // The DJ's writer turns the bulletin into a two-host podcast; `dj` is created below, before any bulletin runs.
+    writeScript: (stories, now) => writeNewsScript(stories, { complete: (request) => dj.complete(request), now }),
     defaultFeeds: NEWS_FEEDS,
     probeFeed,
     render: (parts) => renderParts(parts, {

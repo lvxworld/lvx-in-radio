@@ -405,6 +405,25 @@ export class DjDesk extends EventEmitter {
   }
 
   /** One writer call: a single-DJ line, or with `hosts` a two-host break as JSON. */
+  /** The writer process for the installed model folder (restarted when the folder changes). */
+  async #writer(model) {
+    if (this.#llm && this.#llmModelDir !== model.directory) { await this.#llm.close(); this.#llm = null; }
+    this.#llm ??= new DjLlm({ ...this.#settings.runtime, modelPath: join(model.directory, WRITER_MODEL_FILE), recordPath: join(this.#dataDir, 'dj-llm-process.json'), log: (entry) => console.log('[dj-llm]', entry) });
+    this.#llmModelDir = model.directory;
+    return this.#llm;
+  }
+
+  /**
+   * One writer call for another desk (LVX News). Null when the writer model is not installed or
+   * memory is short (the same gate as a DJ line); the DJ switch does not matter. News holds the
+   * engine while it writes, so this never runs alongside a DJ line.
+   */
+  async complete(request) {
+    const model = await this.#model.snapshot();
+    if (this.#closed || !model.ready || (await this.#tierChoice()) !== 1) return null;
+    return (await this.#writer(model)).complete(request);
+  }
+
   async #writerLine(context, style, signal, retry = false, hosts = null) {
     const input = { ...context, style, recentOpeners: this.#openers, recentStructures: this.#writerStructures, recentHumour: this.#writerHumour, retry };
     const request = hosts ? buildDuoRequest(this.#prompts, input, hosts) : buildDjWriterRequest(this.#prompts, input);
@@ -554,10 +573,7 @@ export class DjDesk extends EventEmitter {
         }
         if (mode !== 'preview') this.#tier = tier;
         if (!line && tier === 1) {
-          const model = await this.#model.snapshot();
-          if (this.#llm && this.#llmModelDir !== model.directory) { await this.#llm.close(); this.#llm = null; }
-          this.#llm ??= new DjLlm({ ...this.#settings.runtime, modelPath: join(model.directory, WRITER_MODEL_FILE), recordPath: join(this.#dataDir, 'dj-llm-process.json'), log: (entry) => console.log('[dj-llm]', entry) });
-          this.#llmModelDir = model.directory;
+          await this.#writer(await this.#model.snapshot());
           line = await this.#lineText(context, style, tier, active.controller.signal, hosts, mode === 'slot' ? this.#story() : null);
           const after = await this.#freeMemory();
           if ((typeof after === 'number' ? after : after?.availableBytes ?? 0) < 10 * 1024 ** 3) await this.#llm.stop();
