@@ -349,6 +349,31 @@ export class RadioStation extends EventEmitter {
     this.emit('change');
   }
 
+  /** Deletes only generated library audio; catalog and Live feedback stay separate. */
+  async deleteSong(trackId) {
+    if (typeof trackId !== 'string' || !this.#library.get(trackId) || this.#catalog?.has(trackId)) throw new RangeError('Unknown generated song');
+    const freedBytes = await this.#library.deleteSong(trackId);
+    const session = this.#session;
+    let nextTrackId = session?.playback.trackId ?? null;
+    if (session) {
+      const index = session.tracks.findIndex(track => track.id === trackId);
+      const current = session.playback.trackId === trackId;
+      const next = current ? [...session.tracks.slice(index + 1), ...session.tracks.slice(0, index)].find(track => track.status === 'ready' && track.id !== trackId) : null;
+      session.tracks = session.tracks.filter(track => track.id !== trackId);
+      if (current) {
+        nextTrackId = next?.id ?? null;
+        session.playback = { trackId: nextTrackId, positionSec: 0, playing: Boolean(next && session.playback.playing), at: Date.now() };
+        if (!next) session.held = true;
+      }
+      // Cancel an intro aimed at the removed song before replanning the queue.
+      if (index >= 0) await this.#dj?.cancel('song deleted');
+    }
+    await this.#dj?.rejectSong(trackId);
+    if (session === this.#session && session) this.#plan(session);
+    this.emit('change');
+    return { trackId, freedBytes, nextTrackId, sessionId: session?.id ?? null };
+  }
+
   audioPath(trackId) {
     return this.#catalog?.audioPath(trackId) ?? this.#library.audioPath(trackId);
   }
@@ -435,6 +460,7 @@ export class RadioStation extends EventEmitter {
       stations,
       error: session.error,
       tracks: session.tracks,
+      playbackTrackId: session.playback.trackId,
       generation: {
         enabled: session.generationEnabled,
         active: this.#jobFor(session),
@@ -617,6 +643,7 @@ export class RadioStation extends EventEmitter {
       ...(song.remoteUrl ? { source:'remote', remoteUrl:song.remoteUrl, remoteOrigin:song.remoteOrigin, mediaKey:song.mediaKey } : {}),
       generation: song.generation,
       durationSec: song.durationSec,
+      sizeBytes: song.sizeBytes,
       truncated: song.truncated,
       liked: song.liked,
       createdAt: song.createdAt,
@@ -865,7 +892,7 @@ export class RadioStation extends EventEmitter {
     const mode = song.generation.instrumental ? 'instrumental' : 'sung';
     this.#estimates[mode] += (elapsedSec - this.#estimates[mode]) * ESTIMATE_SMOOTHING;
     await this.#library.evict(protectedIds.add(song.id));
-    return { durationSec, truncated };
+    return { durationSec, truncated, sizeBytes: wav.length };
   }
 
   #recordFailure(session, track, error) {

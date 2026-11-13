@@ -1,0 +1,23 @@
+.song-delete-dialog {
+  width: min(390px, calc(100vw - 64px));
+  box-sizing: border-box;
+  padding: 28px;
+  color: #eee6db;
+  background: radial-gradient(ellipse at top left, #292017, #171410 70%);
+  border: 1px solid #514332;
+  border-radius: 18px;
+  box-shadow: 0 24px 90px #000a;
+  font: 13px/1.6 'Space Grotesk', sans-serif;
+}
+.song-delete-dialog::backdrop { background: #080705b8; backdrop-filter: blur(4px); }
+.song-delete-kicker { margin: 0 0 8px; color: #bba07c; font: 10px 'JetBrains Mono', monospace; letter-spacing: .14em; text-transform: uppercase; }
+.song-delete-dialog h2 { margin: 0 0 12px; font: 300 30px/1.1 'Barlow Condensed', sans-serif; }
+.song-delete-name { margin: 0 0 8px; color: #f2a33a; font-weight: 500; overflow-wrap: anywhere; }
+#song-delete-detail { margin: 0; color: #b5aa9c; }
+.song-delete-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.song-delete-actions button { border-radius: 8px; padding: 9px 14px; cursor: pointer; font: 500 12px 'Space Grotesk', sans-serif; }
+.song-delete-cancel { border: 1px solid #514332; background: transparent; color: #ddd3c6; }
+.song-delete-confirm { border: 1px solid #f2a33a; background: #f2a33a; color: #24180b; }
+.song-delete-actions button:focus-visible { outline: 2px solid #f3e1c2; outline-offset: 3px; }
+.song-delete-actions button:disabled { opacity: .5; cursor: wait; }
+.song-delete-error { margin: 14px 0 0; color: #f2b19c; }

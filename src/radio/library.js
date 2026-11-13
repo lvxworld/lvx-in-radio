@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 const MAX_UNLIKED_PER_BUCKET = 12;
@@ -124,6 +124,13 @@ export class Library {
     return this.#save(song);
   }
 
+  /** Explicit listener deletion may remove a favourite too, after UI confirmation. */
+  async deleteSong(id) {
+    const song = this.#songs.get(id);
+    if (!song) throw new RangeError('Unknown generated song');
+    return this.#remove(song);
+  }
+
   /** Removes rejected songs, then other songs over the limits, stalest first. */
   async evict(protectedIds) {
     const removable = [...this.#songs.values()]
@@ -153,9 +160,16 @@ export class Library {
 
   async #remove(song) {
     const audio = this.audioPath(song.id);
+    const paths = [audio, audio.replace(/\.wav$/, '.json'), audio.replace(/\.wav$/, '.tmp')];
+    let freedBytes = 0;
+    for (const path of paths) {
+      const info = await stat(path).catch(error => { if (error.code !== 'ENOENT') throw error; return null; });
+      await rm(path, { force: true });
+      freedBytes += info?.size ?? 0;
+    }
     this.#songs.delete(song.id);
-    await rm(audio, { force: true });
-    await rm(audio.replace(/\.wav$/, '.json'), { force: true });
+    await rmdir(dirname(audio)).catch(error => { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) console.warn('Could not remove an empty library folder:', error.message); });
+    return freedBytes;
   }
 
   /** The metadata file appears last, so a crash cannot list a partial song. */
