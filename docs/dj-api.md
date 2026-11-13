@@ -36,8 +36,8 @@ for a complete development flow.
 
 Accepts any subset of `{ "enabled": boolean, "minSongs": 1|2|3|4,
 "maxSongs": 1|2|3|4 }` (integers only). The range must satisfy `minSongs <= maxSongs`; defaults
-are 2 and 4, and 1 to 1 means after every song. Whatever the range, a DJ never speaks over the
-first song after tuning (tune, retune or station change): the first slot is on the second song. A development runtime may also be changed with a `runtime` object
+are 2 and 4, and 1 to 1 means after every song. The count starts with the first song after
+tuning (tune, retune or station change), so with 1 to 1 the first song already gets a DJ. A development runtime may also be changed with a `runtime` object
 containing `command`, `args`, and `port`. Enabling without both models ready is
 rejected with HTTP 409 and the readiness state. Success returns the updated
 `GET /api/dj` object.
@@ -126,8 +126,8 @@ line is being recorded right now. A wait longer than 5 minutes ends as an `error
 ## Automatic introductions (SSE only)
 
 The radio alone chooses the speaking slot, every 2–4 songs. There is no listener
-API to force an introduction. The first song after tuning is not a production
-slot. A due slot needs playback, both models ready, a selected DJ and an
+API to force an introduction. The first song after tuning counts toward the
+cadence like any other. A due slot needs playback, both models ready, a selected DJ and an
 already-ready next song. It borrows the normal prioritized hold; it never
 interrupts a started song job or urgent News.
 
@@ -174,7 +174,7 @@ Only IDs present in the DJ cache are served; unknown or incomplete IDs return
 `llm | template | silent | null`. The same record is logged by the server and appended, with a
 timestamp, to `<data>/dj.log` (kept under 256 KB), since the packaged app has no console.
 A slot that is due but skipped is logged too, once per song and reason:
-`{ mode: 'slot', status: 'skipped', reason, songsSince, due, fresh, runwaySec, warm, next, after, lux }`
+`{ mode: 'slot', status: 'skipped', reason, songsSince, due, runwaySec, warm, next, after, lux }`
 (`reason`: `models-missing | not-playing | news-urgent | next-song-not-ready | not-enough-time |
 context-changed | expired | error | low-memory`). `news-urgent` keeps the slot due: it is tried
 again as soon as News no longer needs the engine. News is urgent only while a bulletin is being

@@ -121,7 +121,7 @@ Order: **song > DJ > news.** The engine runs one job at a time and `RadioStation
 - The News bulletin keeps its own window (10 min before the hour). A running news production is never cut; a waiting DJ job goes first, then news; if a news production would miss its deadline the DJ job is skipped, not the news.
 - DJ lines are prepared during song N for song N+1, only when N+1 is already `ready` (so title and metadata exist). Library replays count.
 - Lines are cached by (song id, DJ id, version); a replay reuses the clip, with an occasional rewrite.
-- Slot rule: a DJ speaks after 2, 3 or 4 songs, chosen at random with a station seed; never twice in a row; never on the first song after tuning.
+- Slot rule: a DJ speaks after 2, 3 or 4 songs, chosen at random with a station seed; never twice in a row. The count starts with the first song after tuning, so 1 to 1 introduces song 2 at the end of song 1 (a first song too short to prepare a break in is skipped by the runway check).
 
 ## RAM tiers (chosen right before each DJ job from free + inactive memory)
 
@@ -223,8 +223,8 @@ Implemented from `docs/dj-lux-spec.md` with the lead's decisions. The four LVX s
   at the end of the NEXT song and introduces the one after it: the introduction carries
   `fromTrackId` (the song on air while it waits) and `songId` (the song it talks over), and it
   survives the natural end of the song before. LVX sessions keep two songs ahead when the catalog
-  has them. A song of unknown length (0) gets no DJ. Cadence and "never on the first song after
-  tuning" are as for listener stations. Measured on this Mac: writer cold ~8 s, warm ~1 s; voice
+  has them. A song of unknown length (0) gets no DJ. The cadence is as for listener stations,
+  counting from the first song after tuning. Measured on this Mac: writer cold ~8 s, warm ~1 s; voice
   5.5–6 s from an idle engine, ~13 s after YuE2; a template line in 8.4–9.2 s end to end.
 - **Writer input:** station name, its description (the LVX quote or the Live description), genre
   mix and style; next title and one mood word from `prompts/lux-moods.json`, the manifest's

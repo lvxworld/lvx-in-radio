@@ -309,7 +309,7 @@ export class DjDesk extends EventEmitter {
   }
 
   #stateFor(stationId, seed = 1, playbackSessionId) {
-    if (!this.#states.has(stationId) || (playbackSessionId && this.#states.get(stationId).playbackSessionId !== playbackSessionId)) this.#states.set(stationId, { playbackSessionId, lastTrackId: null, songsSince: 0, target: this.#slotTarget(seed), lastDjId: null, offered: null, fresh: true });
+    if (!this.#states.has(stationId) || (playbackSessionId && this.#states.get(stationId).playbackSessionId !== playbackSessionId)) this.#states.set(stationId, { playbackSessionId, lastTrackId: null, songsSince: 0, target: this.#slotTarget(seed), lastDjId: null, offered: null });
     return this.#states.get(stationId);
   }
   #slotTarget(seed) { return this.#slotEverySong ? 1 : this.#settings.minSongs + (seed % (this.#settings.maxSongs - this.#settings.minSongs + 1)); }
@@ -327,8 +327,9 @@ export class DjDesk extends EventEmitter {
       state.songsSince += 1;
       state.lastTrackId = context.playbackTrackId;
     }
-    // Never on the first song after tuning (except the demo flag): a fresh playback session waits for its second song.
-    const due = state.fresh && !this.#slotEverySong ? Math.max(2, state.target) : state.target;
+    // The cadence counts from the first song after tuning: "every song" introduces song 2 at the end of song 1.
+    // A first song too short to prepare a break in is skipped by the runway check, not by a rule.
+    const due = state.target;
     this.#nextSlot = this.#ready && context.playing ? { stationId: context.stationId, afterSongs: due, remainingSongs: Math.max(0, due - state.songsSince), songId: context.next?.id ?? null } : null;
     if (intro && ['armed', 'done'].includes(intro.state) && intro.stationId === context.stationId && context.playing && context.playbackTrackId === intro.nextSongId) {
       if (intro.state === 'armed') {
@@ -386,11 +387,11 @@ export class DjDesk extends EventEmitter {
     const key = `${context.playbackTrackId ?? ''}:${reason}`;
     if (state.loggedSkip !== key) {
       state.loggedSkip = key;
-      this.#logLine({ stationId: context.stationId, songId: context.playbackTrackId ?? null, djId: context.djId ?? null, mode: 'slot', status: 'skipped', reason, songsSince: state.songsSince, due: state.target, fresh: state.fresh, runwaySec: Math.round(context.runwaySec ?? 0), warm: this.#isWarm(), next: context.next?.id ?? null, after: context.after?.id ?? null, lux: Boolean(context.lux) });
+      this.#logLine({ stationId: context.stationId, songId: context.playbackTrackId ?? null, djId: context.djId ?? null, mode: 'slot', status: 'skipped', reason, songsSince: state.songsSince, due: state.target, runwaySec: Math.round(context.runwaySec ?? 0), warm: this.#isWarm(), next: context.next?.id ?? null, after: context.after?.id ?? null, lux: Boolean(context.lux) });
     }
     state.offered = null;
     // News needing the engine is brief: the slot stays due and is tried again as soon as News lets go.
-    if (reason !== 'news-urgent') { state.fresh = false; state.songsSince = 0; state.target = this.#slotTarget(randomInt(1_000_000)); }
+    if (reason !== 'news-urgent') { state.songsSince = 0; state.target = this.#slotTarget(randomInt(1_000_000)); }
     this.#setIntroduction({ stationId: context.stationId, songId: context.playbackTrackId, nextSongId: context.next?.id ?? null, state: 'refused', reason });
   }
 
@@ -585,7 +586,7 @@ export class DjDesk extends EventEmitter {
       if (mode === 'slot') {
         this.#lastLine = { id: key, stationId: context.stationId, songId: context.next.id, djId: dj.id, style: styleId, text: cached.text, ...(cached.turns ? { turns: cached.turns } : {}), source: cached.source, audioId: key, durationSec: cached.durationSec, createdAt: cached.cachedAt ?? new Date().toISOString() };
         this.#openers.push(cached.text.split(/[.!?]/)[0]); this.#openers = this.#openers.slice(-6);
-        state.fresh = false; state.songsSince = 0; state.target = this.#slotTarget(randomInt(1_000_000)); state.lastDjId = dj.id; state.offered = null;
+        state.songsSince = 0; state.target = this.#slotTarget(randomInt(1_000_000)); state.lastDjId = dj.id; state.offered = null;
         this.#tier = cached.tier ?? this.#tier;
         this.#setIntroduction({ stationId: context.stationId, songId: context.anchorTrackId ?? context.playbackTrackId, nextSongId: context.next.id, state: 'armed', ...(context.ahead && context.fromTrackId ? { fromTrackId: context.fromTrackId } : {}) });
       } else {
