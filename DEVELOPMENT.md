@@ -18,7 +18,7 @@ npm run test:menu-bar # Native mini player, playback and generation controls; no
 npm run test:live-ui  # Electron renderer: settings, Describe, QR PNG round-trip, Live playback; no model needed
 npm start             # browser UI at http://127.0.0.1:8787
 npm run fetch-engine  # pinned audio.cpp release, checksum verified
-npm run fetch-dj-llm  # bundled Python + mlx_lm.server for the DJ writer (vendor/dj-llm), built once
+npm run fetch-dj-llm  # pinned llama.cpp llama-server for the DJ writer (vendor/dj-llm), checksum verified
 npm run build:dj-previews  # re-render the six DJ audition clips (real Qwen3-TTS voice)
 npm run app           # Electron from source
 npm run dist          # build the arm64 DMG in dist/
@@ -107,6 +107,6 @@ so the two agents never drift apart.
 `npm run demo` serves the real app at http://127.0.0.1:8790 with persistent `~/.lvx-dev/demo-data`.
 `npm run demo -- --fresh` (or `DEMO_FRESH=1`) resets only `~/.lvx-dev/demo-fresh`, without seeds, for first-launch Lux autoplay.
 Song generation waits `GEN_MS` (default 20000), then decodes an unused bundled MP3 with ffmpeg-full; YuE2 never loads.
-News/DJ voices use installed shared weights; the DJ writer uses the HF cache and `DJ_LLM_COMMAND` (default `vendor/dj-llm/bin/mlx_lm.server`, built by `npm run fetch-dj-llm`).
+News/DJ voices use installed shared weights; the DJ writer uses the HF cache and `DJ_LLM_COMMAND` (default `vendor/dj-llm/llama-server`, fetched by `npm run fetch-dj-llm`).
 `DJ_DEMO_SLOT=1 npm run demo` offers a DJ slot every song; default remains 2–4, with normal readiness/runway/RAM gates.
 `node scripts/demo-check.mjs` starts its own non-GPU demo on a free port and deletes its isolated data on exit; normal demo data is untouched.

@@ -7,11 +7,13 @@ import { test } from 'node:test';
 import { loadConfig, VENDOR_DJ_LLM_COMMAND } from '../src/config.js';
 import { DjDesk, resolveDjRuntime } from '../src/radio/dj/dj-desk.js';
 
-const packagedCommand = '/Applications/LVX in Radio.app/Contents/Resources/dj-llm/bin/mlx_lm.server';
+const packagedCommand = '/Applications/LVX in Radio.app/Contents/Resources/dj-llm/llama-server';
+// What v0.2.0 saved: python3 -m mlx_lm.server, or its bundled MLX launcher.
 const legacyRuntime = { command: 'python3', args: ['-m', 'mlx_lm.server'] };
+const oldBundled = '/X/dj-llm/bin/mlx_lm.server';
 
 for (const [label, bundledCommand] of [['packaged', packagedCommand], ['vendor', VENDOR_DJ_LLM_COMMAND]]) {
-  test(`DJ runtime uses the ${label} launcher without Python module arguments`, () => {
+  test(`DJ runtime uses the ${label} llama-server without extra arguments`, () => {
     assert.deepEqual(resolveDjRuntime({ env: {}, bundledCommand }), { command: bundledCommand, args: [], port: 8765 });
   });
 }
@@ -19,16 +21,18 @@ for (const [label, bundledCommand] of [['packaged', packagedCommand], ['vendor',
 test('DJ runtime environment command and port override saved and bundled settings', () => {
   const saved = { command: 'llama-server', args: ['--ctx-size', '2048'], port: 9000 };
   assert.deepEqual(resolveDjRuntime({
-    env: { LVX_DJ_LLM_COMMAND: '/custom/python3', LVX_DJ_LLM_PORT: '9876' },
+    env: { LVX_DJ_LLM_COMMAND: '/opt/homebrew/bin/llama-server', LVX_DJ_LLM_PORT: '9876' },
     bundledCommand: packagedCommand, saved,
-  }), { command: '/custom/python3', args: ['-m', 'mlx_lm.server'], port: 9876 });
+  }), { command: '/opt/homebrew/bin/llama-server', args: [], port: 9876 });
   assert.deepEqual(saved, { command: 'llama-server', args: ['--ctx-size', '2048'], port: 9000 });
 });
 
 for (const saved of [
   { ...legacyRuntime, port: 9010 },
   { command: 'python3', port: 9010 },
-  { command: '/X/dj-llm/bin/mlx_lm.server', args: [], port: 9010 },
+  { command: oldBundled, args: [], port: 9010 },
+  { command: '/X/dj-llm/llama-server', args: [], port: 9010 },
+  { command: 'llama-server', args: [], port: 9010 },
 ]) {
   test(`saved old runtime ${saved.command} does not shadow the current bundle`, () => {
     assert.deepEqual(resolveDjRuntime({ env: {}, bundledCommand: packagedCommand, saved }), {
@@ -53,10 +57,10 @@ test('a custom Python command with different arguments remains an explicit choic
   assert.deepEqual(resolveDjRuntime({ env: {}, bundledCommand: packagedCommand, saved }), saved);
 });
 
-test('DJ runtime falls back to python3 module invocation when no bundle or custom choice exists', () => {
-  assert.deepEqual(resolveDjRuntime({ env: {} }), { ...legacyRuntime, port: 8765 });
-  assert.deepEqual(resolveDjRuntime({ env: {}, saved: { command: '/X/dj-llm/bin/mlx_lm.server', args: [], port: 9010 } }), {
-    ...legacyRuntime, port: 9010,
+test('DJ runtime falls back to llama-server from PATH when no bundle or custom choice exists', () => {
+  assert.deepEqual(resolveDjRuntime({ env: {} }), { command: 'llama-server', args: [], port: 8765 });
+  assert.deepEqual(resolveDjRuntime({ env: {}, saved: { command: oldBundled, args: [], port: 9010 } }), {
+    command: 'llama-server', args: [], port: 9010,
   });
 });
 
@@ -82,7 +86,7 @@ test('loading legacy DJ settings adopts the bundled runtime and preserves port a
   });
   for (const runtime of [
     { ...legacyRuntime, port: 9010 },
-    { command: '/X/dj-llm/bin/mlx_lm.server', args: [], port: 9011 },
+    { command: oldBundled, args: [], port: 9011 },
   ]) {
     await t.test(runtime.command, async (t) => {
       const root = await mkdtemp(join(tmpdir(), 'lvx-dj-runtime-'));

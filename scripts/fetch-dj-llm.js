@@ -1,32 +1,53 @@
 #!/usr/bin/env node
-/** Puts the DJ script writer (bundled Python + mlx_lm.server) inside vendor/, where the app build takes it from. */
+/** Puts the DJ script writer (llama.cpp's llama-server) inside vendor/, where the app build takes it from. */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const BUILD = join(HERE, 'build-dj-llm.sh');
-const TARGET = resolve(HERE, '../vendor/dj-llm');
-// One source of truth: the version the build script writes into vendor/dj-llm/VERSION.
-const VERSION = readFileSync(BUILD, 'utf8').match(/^BUNDLE_VERSION="([^"]+)"$/m)?.[1];
-if (!VERSION) throw new Error('build-dj-llm.sh has no BUNDLE_VERSION');
+const VERSION = 'b12329';
+const SHA256 = 'b4d0176d274c576d1f912d6eede6ff67176b4e205af52fa6400b30f55d8f5446';
+const URL = `https://github.com/ggml-org/llama.cpp/releases/download/${VERSION}/llama-${VERSION}-bin-macos-arm64.tar.gz`;
+const TARGET = resolve(dirname(fileURLToPath(import.meta.url)), '../vendor/dj-llm');
+// llama-server and the libraries it loads through @loader_path, under the names it asks for
+// (copied, not symlinked, so the app bundle holds plain files).
+const KEEP = [
+  'llama-server', 'LICENSE', 'libllama-server-impl.dylib', 'libllama-common.0.dylib', 'libmtmd.0.dylib', 'libllama.0.dylib',
+  'libggml.0.dylib', 'libggml-base.0.dylib', 'libggml-cpu.0.dylib', 'libggml-blas.0.dylib', 'libggml-metal.0.dylib', 'libggml-rpc.0.dylib',
+];
 
-// Ready for a prebuilt release archive later; disabled until one is published.
-const ARCHIVE_URL = null; // e.g. https://github.com/lvxworld/lvx-in-radio/releases/download/dj-llm-1/dj-llm-macos-arm64.tar.gz
-const ARCHIVE_SHA256 = null;
-
-function installedVersion() {
-  try { return readFileSync(join(TARGET, 'VERSION'), 'utf8').trim(); } catch { return null; }
+async function installedVersion() {
+  try { return (await readFile(join(TARGET, 'VERSION'), 'utf8')).trim(); } catch { return null; }
 }
 
-if (installedVersion() === VERSION && existsSync(join(TARGET, 'bin/mlx_lm.server')) && existsSync(join(TARGET, 'python/bin/python3.12'))) {
-  console.log(`DJ writer ${VERSION} is already in place`);
+if ((await installedVersion()) === VERSION && existsSync(join(TARGET, 'llama-server'))) {
+  console.log(`llama.cpp ${VERSION} is already in place`);
   process.exit(0);
 }
-if (ARCHIVE_URL && ARCHIVE_SHA256) throw new Error('Prebuilt DJ writer archives are not wired yet');
 
-console.log(`Building DJ writer ${VERSION}`);
-const { status } = spawnSync('sh', [BUILD], { stdio: 'inherit' });
-if (status !== 0) throw new Error(`build-dj-llm.sh failed (${status})`);
-if (installedVersion() !== VERSION) throw new Error('The DJ writer build did not write the expected VERSION');
+console.log(`Downloading llama.cpp ${VERSION}`);
+const response = await fetch(URL);
+if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
+const archive = Buffer.from(await response.arrayBuffer());
+const digest = createHash('sha256').update(archive).digest('hex');
+if (digest !== SHA256) throw new Error(`The download does not match the expected checksum: ${digest}`);
+
+const work = await mkdtemp(join(tmpdir(), 'lvx-dj-llm-'));
+try {
+  const file = join(work, 'llama.tar.gz');
+  await writeFile(file, archive);
+  const { status, stderr } = spawnSync('tar', ['xzf', file, '-C', work], { encoding: 'utf8' });
+  if (status !== 0) throw new Error(`Could not extract the release: ${stderr}`);
+  await rm(TARGET, { recursive: true, force: true });
+  await mkdir(TARGET, { recursive: true });
+  for (const name of KEEP) await copyFile(join(work, `llama-${VERSION}`, name), join(TARGET, name));
+  const check = spawnSync(join(TARGET, 'llama-server'), ['--version'], { encoding: 'utf8' });
+  if (check.status !== 0) throw new Error(`llama-server does not run: ${check.stderr}`);
+  await writeFile(join(TARGET, 'VERSION'), `${VERSION}\n`);
+} finally {
+  await rm(work, { recursive: true, force: true });
+}
+console.log(`llama.cpp ${VERSION} is in ${TARGET}`);

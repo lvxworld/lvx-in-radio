@@ -44,20 +44,11 @@ in `.claude/skills/`. `todo.md`, when present, is the owner's private reminder l
 
 ## DJ writer runtime
 
-`scripts/build-dj-llm.sh` (`npm run fetch-dj-llm`, also run by `npm run dist` and the release
-workflow) installs Python wheels only from `scripts/dj-llm/requirements.txt`, with
-`--require-hashes`. Hashes change only when a version changes: PyPI never replaces a file
-under the same version. To update, edit the top-level pins in `scripts/dj-llm/requirements.in`,
-regenerate the lock, then bump `BUNDLE_VERSION` in the build script so existing bundles rebuild:
-
-```sh
-MACOSX_DEPLOYMENT_TARGET=14.0 uv pip compile scripts/dj-llm/requirements.in --generate-hashes \
-  --python-platform aarch64-apple-darwin --python-version 3.12 \
-  --index-url https://pypi.org/simple --no-header -o scripts/dj-llm/requirements.txt
-```
-
-The deployment target matches the `macosx_14_0` wheels the bundle installs. Never edit
-`requirements.txt` by hand.
+`scripts/fetch-dj-llm.js` (`npm run fetch-dj-llm`, also run by `npm run dist`) puts llama.cpp's
+`llama-server` and the libraries it loads into `vendor/dj-llm`, from one pinned release checked by
+SHA-256, like `fetch-engine`. To update llama.cpp, change `VERSION` and `SHA256` there, run
+`npm run fetch-dj-llm`, and check that the DJ still writes valid lines. The writer weights are one
+pinned GGUF in `src/engine/dj-llm-manifest.json`.
 
 ## Bundled music
 

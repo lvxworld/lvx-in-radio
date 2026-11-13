@@ -2,13 +2,12 @@
 
 ## Dev setup
 
-The DJ writer runtime is a self-contained `mlx_lm.server` (Python 3.12, MLX 0.32.4,
-MLX-LM 0.32.2) built into `vendor/dj-llm/` by `npm run fetch-dj-llm`
-(`scripts/build-dj-llm.sh`, pinned versions and checksums) and shipped in the app as
-`Resources/dj-llm`, like audio.cpp. The checkpoint is `mlx-community/Qwen3.5-4B-4bit`,
-pinned to `0e7ffd5c629ef7719d4cbc04069232580bfa9d9c` (3,061,129,077 bytes); sizes and
-SHA-256 values are in `src/engine/dj-llm-manifest.json`. The app downloads it, or finds
-it in the Hugging Face cache.
+The DJ writer runtime is llama.cpp's `llama-server` (release b12329, Metal), fetched into
+`vendor/dj-llm/` by `npm run fetch-dj-llm` (`scripts/fetch-dj-llm.js`, pinned version and
+SHA-256) and shipped in the app as `Resources/dj-llm`, like audio.cpp: the server and its ten
+libraries, about 30 MB. The checkpoint is `unsloth/Qwen3.5-4B-GGUF` Q4_K_M, one file pinned to
+`e87f176479d0855a907a41277aca2f8ee7a09523` (2,740,937,888 bytes); its size and SHA-256 are in
+`src/engine/dj-llm-manifest.json`. The app downloads it, or finds it in the Hugging Face cache.
 The demo uses ordinary `ModelSetup` discovery and integrity verification to find
 it, with no separate weight copy. The voice remains shared with News in
 `.data/models/Qwen3-TTS-12Hz-1.7B-CustomVoice`.
@@ -21,7 +20,7 @@ Song requests wait `GEN_MS` (default 20000), then decode an unused bundled MP3
 with ffmpeg-full into a real WAV; the YuE2 song model never loads. Qwen3-TTS
 requests use the real vendor/audio.cpp engine and shared News voice weights.
 The DJ writer uses the verified Hugging Face cache and `DJ_LLM_COMMAND`, default
-`vendor/dj-llm/bin/mlx_lm.server`.
+`vendor/dj-llm/llama-server`.
 
 Plain `npm run demo` preserves settings, songs and DJ audio in
 `~/.lvx-dev/demo-data`. Its first empty launch seeds three listener stations
@@ -74,7 +73,7 @@ Women: `serena`, `sohee` (Relax, owner 5/5), `vivian` (EDM, 5/5). Men: `ryan`, `
 
 ## Script writer (LLM)
 
-Qwen3.5-4B 4-bit, thinking explicitly OFF (`enable_thinking=false`; the 4B template defaults ON). Loopback OpenAI-style server. Runtime is pluggable behind `dj-llm.js` (command + args + port from settings); development uses `mlx_lm.server`, `llama-server` must also work. Packaging of the runtime is NOT decided and is out of scope.
+Qwen3.5-4B Q4_K_M (GGUF, imatrix-calibrated), thinking explicitly OFF (`enable_thinking=false`; the 4B template defaults ON). Loopback OpenAI-style server. Runtime is pluggable behind `dj-llm.js` (command + args + port from settings); the app runs the bundled `llama-server` (`Resources/dj-llm`).
 
 Grounding rules (from the 36-sample test: the 4B invented details of the previous track and repeated openers):
 - The application injects the exact next-song title; the model describes only the NEXT song's mood from its metadata (genres mix, bpm, energy, dark, mood, flavors). It is given the previous title but must not describe it.

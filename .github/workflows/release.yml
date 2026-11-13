@@ -36,7 +36,7 @@ jobs:
           codesign -dv "$app" 2>&1 | grep -q 'Signature=adhoc'
           test -x "$app/Contents/Resources/engine/audiocpp_server"
           test -f "$app/Contents/Resources/lux/manifest.json"
-          "$app/Contents/Resources/dj-llm/bin/mlx_lm.server" --help >/dev/null
+          "$app/Contents/Resources/dj-llm/llama-server" --version
           ls -la dist/*.dmg
       - name: Publish the release
         run: |

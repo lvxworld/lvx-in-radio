@@ -159,7 +159,7 @@ for (let attempt = 0; attempt < 1200; attempt++) {
   if (![dj.model.status, dj.voice.status].includes('verifying')) break;
   await delay(100);
 }
-const runtime = { command: noGpu ? '/usr/bin/false' : process.env.DJ_LLM_COMMAND ?? resolve('vendor/dj-llm/bin/mlx_lm.server'), args: [], port: Number(process.env.DJ_LLM_PORT ?? 8765) };
+const runtime = { command: noGpu ? '/usr/bin/false' : process.env.DJ_LLM_COMMAND ?? resolve('vendor/dj-llm/llama-server'), args: [], port: Number(process.env.DJ_LLM_PORT ?? 8765) };
 const response = await fetch(`${radio.address}/api/dj/settings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runtime, ...(dj.ready ? { enabled: true } : {}) }) });
 if (!response.ok) throw new Error(`Demo DJ setup failed: ${await response.text()}`);
 console.log(`LVX demo: ${radio.address}\nData: ${dataDir}\nSongs: bundled music after ${genMs} ms; voice/writer: ${noGpu ? 'DISABLED (non-GPU smoke mode)' : 'real, on demand'}; DJ ready: ${dj.ready}`);
