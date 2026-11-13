@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { test } from 'node:test';
 import { wavDurationSeconds, writeWav } from '../src/engine/wav.js';
 import { DjDesk } from '../src/radio/dj/dj-desk.js';
-import { coHostFor, headlineLine, joinTurns, parseDuo, validateDuo, validateNewsLine } from '../src/radio/dj/dj-duo.js';
+import { coHostFor, headlineLine, joinTurns, occurrences, parseDuo, validateDuo } from '../src/radio/dj/dj-duo.js';
 import { loadDjPrompts } from '../src/radio/dj/prompts.js';
 
 const GiB = 1024 ** 3;
@@ -21,7 +21,7 @@ const turns = [
   { host: 'A', text: 'Fair enough, a kettle deserves a quiet hour as much as we do.' },
   { host: 'B', text: `Here comes ${title}, with a calm feeling to settle in.` },
 ];
-const story = { id: 'bbc-1', source: 'BBC News', title: 'Microsoft outage hits airlines', summary: 'Flights were delayed around the world on Friday.', language: 'en' };
+const story = { id: 'bbc-1', source: 'BBC News', title: 'Microsoft outage hits airlines', summary: 'Flights were delayed around the world on Friday.', language: 'en', serious: false };
 const check = { title, hosts, stationName: 'Slow Neon', genres: ['Pop'] };
 
 test('the co-host is the other sex, the one suited to the style first', () => {
@@ -51,12 +51,11 @@ test('a two-host break is parsed without spoken name labels and checked', () => 
   assert.equal(broken((list) => { list[2].text = 'Fair enough, our Pop corner at Slow Neon deserves a quiet hour as well.'; return list; }), true, 'genres and the station are known names');
 });
 
-test('a news sentence keeps to its source', () => {
-  assert.equal(validateNewsLine('BBC News reports that a Microsoft outage hits airlines, and flights were delayed around the world on Friday.', story), true);
-  assert.equal(validateNewsLine('BBC News reports that Satya Nadella apologised as a Microsoft outage hit airlines.', story), false, 'invented name');
-  assert.equal(validateNewsLine('BBC News reports that 300 flights were delayed by a Microsoft outage on Friday.', story), false, 'invented number');
-  assert.equal(validateNewsLine('A Microsoft outage hits airlines, and flights were delayed on Friday.', story), false, 'no credit');
+test('a DJ mentions news by its headline, and titles match as whole words', () => {
   assert.equal(headlineLine(story), 'A quick headline from BBC News: Microsoft outage hits airlines.');
+  assert.equal(occurrences('No brain, no train, just raining, then Rain.', 'Rain'), 1);
+  assert.equal(occurrences(`Here comes ${title}, softly.`, title), 1);
+  assert.equal(validateDuo([{ host: 0, text: 'Is your favourite DJ duo keeping the evening slow and easy tonight?' }, ...parseDuo(JSON.stringify({ turns: turns.slice(1) }), hosts).map((turn, index) => ({ ...turn, host: (index + 1) % 2 }))], check), true, 'DJ is a known capital');
 });
 
 test('turns become one WAV with a short gap between voices', () => {
@@ -68,7 +67,7 @@ test('turns become one WAV with a short gap between voices', () => {
 
 const freePort = () => new Promise((resolve, reject) => { const server = createServer(); server.once('error', reject); server.listen(0, '127.0.0.1', () => { const { port } = server.address(); server.close(() => resolve(port)); }); });
 
-async function desk(t, newsAnswer, coHostChoice) {
+async function desk(t, newsAnswer, coHostChoice, headlines = [story]) {
   const root = await mkdtemp(join(tmpdir(), 'lvx-dj-duo-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   // A writer that answers the two-host JSON when asked for it, and the news sentence for the news prompt.
@@ -94,7 +93,7 @@ http.createServer(async (req, res) => {
   const engine = { requests: [], isWarm: () => false, run: async function (request) { this.requests.push(request); return { audio: wav.toString('base64') }; }, abort: async () => {}, stop: async () => {} };
   const ready = { snapshot: async () => ({ ready: true, status: 'ready', directory: join(root, 'model') }) };
   await mkdir(join(root, 'no-previews'));
-  const dj = new DjDesk({ dataDir: root, station, engine, modelSetup: ready, voiceSetup: ready, freeMemory: async () => 20 * GiB, headlines: () => [story], previewsDir: join(root, 'no-previews') });
+  const dj = new DjDesk({ dataDir: root, station, engine, modelSetup: ready, voiceSetup: ready, freeMemory: async () => 20 * GiB, headlines: () => headlines, previewsDir: join(root, 'no-previews') });
   await dj.load();
   await dj.configure({ enabled: true, minSongs: 2, maxSongs: 2, runtime: { command: process.execPath, args: [writer], port: await freePort() } });
   t.after(() => dj.close());
@@ -105,18 +104,18 @@ http.createServer(async (req, res) => {
 }
 
 test('a break is two voices, with the news read just before the handoff', async (t) => {
-  const { dj, engine } = await desk(t, 'BBC News reports that a Microsoft outage hits airlines, and flights were delayed around the world on Friday.');
+  const { dj, engine } = await desk(t, 'unused');
   const { lastLine } = dj.snapshot();
   assert.equal(lastLine.source, 'llm');
   assert.deepEqual(lastLine.turns.map((turn) => turn.djId), ['serena', hosts[1].id, 'serena', 'serena', hosts[1].id]);
-  assert.match(lastLine.turns[3].text, /^BBC News reports/);
+  assert.equal(lastLine.turns[3].text, headlineLine(story), 'the headline word for word');
   assert.deepEqual(engine.requests.map((request) => request.options.speaker), lastLine.turns.map((turn) => prompts.djs.find((entry) => entry.id === turn.djId).speaker));
   assert.equal(lastLine.durationSec, 5 + 4 * 0.3);
 });
 
-test('a news sentence that adds facts is replaced by the headline itself', async (t) => {
-  const { dj } = await desk(t, 'BBC News reports that Satya Nadella apologised to 300 airlines.');
-  assert.equal(dj.snapshot().lastLine.turns[3].text, headlineLine(story));
+test('a serious story, or one of unknown tone, is never mentioned by a DJ', async (t) => {
+  const { dj } = await desk(t, 'unused', undefined, [{ ...story, serious: true }, { ...story, id: 'bbc-2', serious: null }]);
+  assert.equal(dj.snapshot().lastLine.turns.length, 4);
 });
 
 test('the pair follows the station choice: another co-host of the other sex, or the DJ alone', async (t) => {

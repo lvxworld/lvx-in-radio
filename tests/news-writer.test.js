@@ -19,9 +19,11 @@ const facts = Object.fromEntries(composeScript(stories, evening).map((part) => [
 const answers = { 'npr-1': { first: 1, last: 4, serious: false }, 'bbc-1': { first: 1, last: 3, serious: false }, 'bbc-2': { first: 5, last: 8, serious: false } };
 const writer = (table) => async ({ prompt }) => JSON.stringify(table[stories.find((story) => prompt.startsWith(`Headline words: 1:${story.title.split(' ')[0]} 2:${story.title.split(' ')[1]}`)).id]);
 
-test('the topic is copied from the headline by position; a headline capital goes, a name keeps it', () => {
+test('the topic is copied from the headline by position, and must read as a noun phrase', () => {
   const at = (first, last, serious = false) => JSON.stringify({ first, last, serious });
-  assert.deepEqual(storyTopic(at(1, 4), stories[0]), { topic: 'rivers in the sky', serious: false });
+  assert.deepEqual(storyTopic(at(1, 4), stories[0]), { topic: 'Rivers in the sky', serious: false });
+  assert.equal(storyTopic(at(2, 4), stories[0]), null, 'starts with "in"');
+  assert.deepEqual(storyTopic(at(1, 2), { ...stories[0], title: 'US tariffs hit carmakers', summary: 'A dealer told us prices will rise.' }), { topic: 'US tariffs', serious: false }, 'an acronym keeps its capitals');
   assert.deepEqual(storyTopic(at(1, 3, true), stories[1]), { topic: 'Hegseth awards medal', serious: true });
   assert.deepEqual(storyTopic(at(5, 8), stories[2]), { topic: 'the global Microsoft outage', serious: false });
   assert.equal(storyTopic(at(3, 3), stories[0]), null, 'one word');
@@ -36,17 +38,27 @@ test('two hosts alternate, the hook teases two light topics, and every story is 
   const parts = await writeNewsScript(stories, { complete: writer(answers), now: evening });
   assert.deepEqual(parts.map((part) => part.id), ['intro', 'npr-1', 'bbc-1', 'bbc-2', 'outro']);
   assert.deepEqual(parts.map((part) => part.speaker), ['Ryan', 'Serena', 'Ryan', 'Serena', 'Ryan']);
-  assert.match(parts[0].text, /^Good evening, this is LVX News\. (This hour|Coming up|On the way this hour): rivers in the sky, and Hegseth awards medal\.$/);
+  assert.match(parts[0].text, /^Good evening, this is LVX News\. (This hour|Coming up|On the way this hour): Rivers in the sky, and Hegseth awards medal\.$/);
   assert.match(parts[1].text, /^Thanks, Ryan\. (First up|We start here)\. /);
   assert.match(parts[3].text, /^(Finally|And one more)\. /);
   assert.ok(parts.slice(1, -1).every((part) => part.storyId && part.text.endsWith(facts[part.id])), 'the plain bulletin text, word for word');
+  assert.deepEqual(parts.slice(1, -1).map((part) => part.serious), [false, false, false], 'the tone is kept for the DJ');
 });
 
 test('a serious story gets a sober hand-over and stays out of the hook', async () => {
   const sombre = { ...answers, 'bbc-1': { first: 1, last: 3, serious: true } };
   const parts = await writeNewsScript(stories, { complete: writer(sombre), now: evening });
-  assert.match(parts[0].text, /: rivers in the sky, and the global Microsoft outage\.$/);
+  assert.match(parts[0].text, /: Rivers in the sky, and the global Microsoft outage\.$/);
   assert.match(parts[2].text, /^(Next|Now, the next story)\. /);
+});
+
+test('an Italian story gets no writer call and no topic, but keeps its place and hand-over', async () => {
+  const asked = [];
+  const italian = { id: 'ansa-1', source: 'ANSA', title: 'Piove forte su Roma', summary: 'Strade allagate in centro.', language: 'it' };
+  const parts = await writeNewsScript([stories[0], italian, stories[2]], { complete: async (request) => { asked.push(request.prompt); return writer(answers)(request); }, now: evening });
+  assert.equal(asked.length, 2);
+  assert.equal(parts[2].serious, null);
+  assert.ok(parts[2].text.endsWith('Piove forte su Roma. Strade allagate in centro. Fonte: ANSA.'));
 });
 
 test('a story without a usable topic is still read; no writer means no podcast at all', async () => {

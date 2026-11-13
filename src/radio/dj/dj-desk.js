@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { readWav, wavDurationSeconds } from '../../engine/wav.js';
 import { buildDjWriterRequest, djTitle, loadDjPrompts, nextSongMoodWord } from '../dj/prompts.js';
 import { DjLlm } from './dj-llm.js';
-import { buildDuoRequest, buildNewsRequest, coHostFor, headlineLine, joinTurns, parseDuo, validateDuo, validateNewsLine } from './dj-duo.js';
+import { buildDuoRequest, coHostFor, headlineLine, joinTurns, occurrences, parseDuo, validateDuo } from './dj-duo.js';
 import djLlmManifest from '../../engine/dj-llm-manifest.json' with { type: 'json' };
 import { DJ_IDS, luxStationDj, styleFor } from './dj-style.js';
 import { PREVIEW_TEXT, VOICE_VERSION, loadBundledPreviews } from './dj-preview.js';
@@ -88,7 +88,7 @@ function clean(value, fallback) {
 export function validateDjLine(text, title) {
   if (typeof text !== 'string') return false;
   const trimmed = text.trim();
-  const count = (trimmed.match(new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) ?? []).length;
+  const count = occurrences(trimmed, title);
   return words(trimmed).length >= 35 && words(trimmed).length <= 60 && count === 1 &&
     !/[\[\]<>*_`#]/.test(trimmed) && !/\b(?:previous track|last song)\b/i.test(trimmed) &&
     !/\b(?:[A-Z][a-z]+\s+(?:Park|Arena|City|Festival))\b/.test(trimmed);
@@ -416,7 +416,8 @@ export class DjDesk extends EventEmitter {
   /**
    * One writer call for another desk (LVX News). Null when the writer model is not installed or
    * memory is short (the same gate as a DJ line); the DJ switch does not matter. News holds the
-   * engine while it writes, so this never runs alongside a DJ line.
+   * engine while it writes, so this never runs alongside a DJ line. Changing a DJ setting meanwhile
+   * restarts the writer: the call fails and News reads the plain bulletin.
    */
   async complete(request) {
     const model = await this.#model.snapshot();
@@ -437,16 +438,8 @@ export class DjDesk extends EventEmitter {
   /** A news story the next break may mention, or null. */
   #story() {
     if (Date.now() - this.#newsAt < NEWS_EVERY_MS) return null;
-    return this.#headlines().find((story) => story.language !== 'it' && story.title && !this.#mentioned.has(story.id)) ?? null;
-  }
-
-  /** The writer retells the story in one checked sentence; if it cannot, the headline is read as it is. */
-  async #newsLine(story, signal) {
-    for (const retry of [false, true]) {
-      const line = await this.#llm.complete({ ...buildNewsRequest(this.#prompts, story, { retry }), signal });
-      if (validateNewsLine(line, story)) return line.trim();
-    }
-    return headlineLine(story);
+    // Only a story the news writer judged light: a grim headline next to banter would jar.
+    return this.#headlines().find((story) => story.serious === false && story.language !== 'it' && story.title && !this.#mentioned.has(story.id)) ?? null;
   }
 
   /**
@@ -467,7 +460,7 @@ export class DjDesk extends EventEmitter {
             if (!validateDuo(turns, check)) continue;
             const spoken = turns.map((turn) => ({ djId: hosts[turn.host].id, text: turn.text }));
             // The host who does not hand over reads the story, just before the handoff.
-            if (story) spoken.splice(-1, 0, { djId: hosts[1 - turns.at(-1).host].id, text: await this.#newsLine(story, signal) });
+            if (story) spoken.splice(-1, 0, { djId: hosts[1 - turns.at(-1).host].id, text: headlineLine(story) });
             return { turns: spoken, source: 'llm', tier, story };
           }
         }

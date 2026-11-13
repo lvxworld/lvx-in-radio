@@ -20,7 +20,7 @@ export async function loadDjPrompts(folders = [fileURLToPath(new URL('./prompts/
     }
   }
   const writer = async (name) => (await Promise.all(folders.map((folder) => readFile(join(folder, 'writer', name), 'utf8').catch(() => '')))).filter(Boolean).at(-1) ?? '';
-  const [system, rules, duo, news] = await Promise.all(['system.md', 'rules.md', 'duo.md', 'news.md'].map(writer));
+  const [system, rules, duo] = await Promise.all(['system.md', 'rules.md', 'duo.md'].map(writer));
   const fallback = (await Promise.all(folders.map((folder) => readJson(join(folder, 'writer/fallback-templates.json')).catch(() => null)))).filter(Boolean).at(-1) ?? {};
   // Data, merged in folder order: the DJ of each style (unset station = this) and one mood word per LVX song.
   const defaults = Object.assign({}, ...(await Promise.all(folders.map((folder) => readJson(join(folder, 'defaults.json')).catch(() => ({}))))));
@@ -39,7 +39,7 @@ export async function loadDjPrompts(folders = [fileURLToPath(new URL('./prompts/
   }
   for (const [style, dj] of Object.entries(defaults)) if (dj !== null && !djs.has(dj)) throw new Error(`DJ default for ${style} is not in the catalog: ${dj}`);
   for (const [song, word] of Object.entries(luxMoods)) if (typeof word !== 'string' || !MOOD_WORD.test(word)) throw new Error(`Invalid LVX mood for ${song}`);
-  return { djs: [...djs.values()], styles: [...styles.values()], system, rules, duo, news, fallback, defaults, luxMoods };
+  return { djs: [...djs.values()], styles: [...styles.values()], system, rules, duo, fallback, defaults, luxMoods };
 }
 
 function text(value, fallback = '') {

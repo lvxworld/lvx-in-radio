@@ -7,7 +7,8 @@ export const DUO_FORMAT = { type: 'json_schema', json_schema: { name: 'break', s
 const GAP_SEC = 0.3;
 const words = (text) => text.trim().split(/\s+/).filter(Boolean);
 const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const occurrences = (text, needle) => (text.match(new RegExp(escape(needle), 'gi')) ?? []).length;
+/** Whole-word matches only: a title "Rain" is not found in "brain" or "raining". */
+export const occurrences = (text, needle) => (text.match(new RegExp(`(?<![\\p{L}\\p{N}])${escape(needle)}(?![\\p{L}\\p{N}])`, 'giu')) ?? []).length;
 
 /** The station DJ's co-host: the other sex, the one suited to the style first. Null when the catalog has none. */
 export function coHostFor(djs, dj, styleId) {
@@ -49,7 +50,8 @@ export function parseDuo(raw, hosts) {
 /**
  * A break the voice may read: alternating turns from host A, short turns, the title once and in
  * the last turn, no markup, and no capitalised word inside a sentence that is not a host, the
- * station, the title or a genre (invented places, days, artists).
+ * station, the title or a genre (invented places, days, artists). The first word of a sentence
+ * is not checked: it is capitalised anyway, so an invented name there passes.
  */
 export function validateDuo(turns, { title, hosts, stationName = '', genres = [] }) {
   if (!Array.isArray(turns) || turns.length < 2 || turns.length > 4) return false;
@@ -60,44 +62,14 @@ export function validateDuo(turns, { title, hosts, stationName = '', genres = []
   const count = words(all).length;
   if (count < 35 || count > 80 || occurrences(all, title) !== 1 || occurrences(turns.at(-1).text, title) !== 1) return false;
   if (/[\[\]<>*_`#{}]/.test(all) || /\b(?:previous track|last song)\b/i.test(all)) return false;
-  const allowed = new Set(`${hosts.map((host) => host.name).join(' ')} ${stationName} ${title} ${genres.join(' ')} LVX I I'm I'd I'll I've OK`.toLowerCase().match(/[\p{L}'-]+/gu) ?? []);
-  return turns.every((turn) => [...turn.text.matchAll(/(?<![.!?]\s)(?<!^)\b([A-Z][\p{L}'-]*)/gu)].every((match) => allowed.has(match[1].toLowerCase())));
+  const allowed = new Set(`${hosts.map((host) => host.name).join(' ')} ${stationName} ${title} ${genres.join(' ')} LVX DJ DJs FM AM TV I I'm I'd I'll I've OK`.toLowerCase().match(/[\p{L}'-]+/gu) ?? []);
+  return turns.every((turn) => [...turn.text.matchAll(/(?<![.!?]\s)(?<!^)(?<![\p{L}\p{N}'-])(\p{Lu}[\p{L}'-]*)/gu)].every((match) => allowed.has(match[1].toLowerCase())));
 }
-
-/** One spoken sentence about a news story, from its headline and summary only. */
-export function buildNewsRequest(prompts, story, { retry = false } = {}) {
-  const prompt = `${JSON.stringify({ source: story.source, headline: story.title, summary: story.summary ?? '' })}${retry ? '\nUse at most 30 words.' : ''}`;
-  return { system: prompts.news, prompt, maxTokens: 80 };
-}
-
-// Words that may open a sentence without being a name (they are never facts on their own).
-const STARTERS = new Set(`a an and as at but by for from here in it its meanwhile now on one so still that the then there these they this those today tonight we what when while yes also after before elsewhere finally first next not no well just even only all both if how why who you your our my he she his her their some many more big good great quite it's that's there's here's let's what's i i'm thanks thank over okay right coming time up
-il lo la i gli le un una uno e ma in nel nella nei negli oggi ora intanto secondo questa questo poi infine anche dopo prima grazie passiamo adesso`.split(/\s+/));
 
 /**
- * True when every number and every capitalised word in `text` is in `source` (or in `allowed`):
- * nothing named or counted that the feed did not say. Sentence openers may be ordinary words.
+ * How a DJ mentions a story: the headline, word for word. The writer never retells news; the 4B
+ * swaps who did what, and a check on names and numbers cannot see that.
  */
-export function groundedIn(text, source, allowed = []) {
-  const known = new Set(`${source} ${allowed.join(' ')}`.toLowerCase().match(/[\p{L}'-]+/gu)?.map((word) => word.replace(/'s$/, '')) ?? []);
-  if ((text.match(/\d[\d.,]*/g) ?? []).some((number) => !source.includes(number.replace(/[.,]$/, '')))) return false;
-  return [...text.matchAll(/\b(\p{Lu}[\p{L}'-]*)/gu)].every((match) => {
-    const word = match[1].toLowerCase().replace(/'s$/, '');
-    const opener = match.index === 0 || /[.!?:]\s*$/.test(text.slice(0, match.index));
-    return known.has(word) || (opener && STARTERS.has(word));
-  });
-}
-
-/** Every number and every capitalised word inside the sentence must be in the source; it starts by crediting it. */
-export function validateNewsLine(text, story) {
-  if (typeof text !== 'string') return false;
-  const line = text.trim();
-  const count = words(line).length;
-  if (count < 8 || count > 35 || !line.toLowerCase().startsWith(story.source.split(' ')[0].toLowerCase()) || /[\[\]<>*_`#{}]/.test(line)) return false;
-  return groundedIn(line, `${story.source} ${story.title} ${story.summary ?? ''}`, ['reports', 'says', 'that']);
-}
-
-/** What A says when the writer cannot retell a story safely: the headline, word for word. */
 export const headlineLine = (story) => `A quick headline from ${story.source}: ${story.title.replace(/[.!?]*$/, '.')}`;
 
 /** One WAV from the turns' WAVs (same rate, mono), with a short breath between voices. */

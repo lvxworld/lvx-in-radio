@@ -47,18 +47,14 @@ function summaryText(summary, language) {
 
 const greeting = (hour) => (hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
 
-/**
- * One story as spoken text: its title, at most two summary sentences and the credit, all from the
- * feed. Without `title` (a lead-in already names the subject) the title is read only if there is
- * no summary, so the story is never empty of facts.
- */
-export function storyText(story, { title: withTitle = true } = {}) {
+/** One story as spoken text: its title, at most two summary sentences and the credit, all from the feed. */
+function storyText(story) {
   const language = story.language === 'it' ? 'it' : 'en';
   const title = closed(normalizeSpeech(story.title, language));
   const summary = summaryText(story.summary, language);
   const source = normalizeSpeech(story.source, language);
   const credit = source ? (language === 'it' ? `Fonte: ${source}.` : `According to ${source}.`) : '';
-  return [withTitle || !summary ? title : '', summary, credit].filter(Boolean).join(' ');
+  return [title, summary, credit].filter(Boolean).join(' ');
 }
 
 /** The one place that turns stories into spoken text. Swap it to bring in a language model. */

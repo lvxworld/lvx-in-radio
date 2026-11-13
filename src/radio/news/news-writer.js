@@ -36,6 +36,8 @@ const LEADS = {
 // A topic for the tease must read as a noun phrase: no dangling function word, no symbols or quotes.
 // A verb like these makes the phrase a clause ("sandpapergate is back"), not a topic.
 const CLAUSE = /^(?:is|are|was|were|be|been|can|could|will|would|has|have|had|says|said|do|does|did)$/i;
+// A phrase may start with an article ("the global Microsoft outage") but not with these ("of the war").
+const OPENING = /^(?:and|or|but|of|to|in|on|at|by|for|from|with|who|that|as)$/i;
 const DANGLING = /\b(?:a|an|the|and|or|but|of|to|in|on|at|by|for|from|with|is|are|was|were|be|can|will|has|have|had|who|that|as)$/i;
 const HOOKS = ['This hour: {a}, and {b}.', 'Coming up: {a}, and {b}.', 'On the way this hour: {a}, and {b}.'];
 const OUTROS = ["That's LVX News for this hour. Back to the music.", "That's the news this hour. Now, back to the music."];
@@ -54,13 +56,13 @@ export function storyTopic(raw, story) {
   if (!Number.isInteger(first) || !Number.isInteger(last) || first < 1 || last > all.length || last - first < 1 || last - first > 5) return null;
   const topic = all.slice(first - 1, last).join(' ').replace(/[,;:.!?]+$/, '').trim();
   const parts = topic.split(/\s+/);
-  if (parts.length < 2 || DANGLING.test(topic) || /[^\p{L}\s'’-]|^['’]|['’]$/u.test(topic) || parts.some((word) => !/\p{L}/u.test(word) || CLAUSE.test(word))) return null;
-  // "Rivers in the sky" opens the headline but reads "rivers" mid-sentence: lower-case a first word
-  // only when the feed also writes it in lower case, so names ("Pete Hegseth") keep their capital.
-  const lead = topic.split(/\s+/)[0], source = `${story.title} ${story.summary ?? ''}`;
-  const lower = new RegExp(`(^|[^\\p{L}])${lead.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'u').test(source);
-  return { topic: lower ? lead.toLowerCase() + topic.slice(lead.length) : topic, serious: answer.serious === true };
+  // The script is only heard, so a capital needs no fixing ("Rivers in the sky" sounds the same).
+  if (parts.length < 2 || DANGLING.test(topic) || OPENING.test(parts[0]) || /[^\p{L}\s'’-]|^['’]|['’]$/u.test(topic) || parts.some((word) => !/\p{L}/u.test(word) || CLAUSE.test(word))) return null;
+  return { topic, serious: answer.serious === true };
 }
+
+/** The model's word on tone: true, false, or null when it gave none. */
+const seriousOf = (raw) => { try { const value = JSON.parse(raw)?.serious; return typeof value === 'boolean' ? value : null; } catch { return null; } };
 
 /**
  * Parts for `renderParts`, each with its host's `speaker`, or null when no writer is available
@@ -70,17 +72,22 @@ export async function writeNewsScript(stories, { complete, now = new Date(), hos
   if (!stories.length) return null;
   const plain = composeScript(stories, now);
   const topics = [];
+  let available = false;
   for (const story of stories) {
-    let topic = null;
-    for (let attempt = 0; attempt < 2 && !topic; attempt += 1) {
+    // The prompt and the checks are English, and the tease is read in English: Italian stories get no topic.
+    let topic = null, serious = null;
+    for (let attempt = 0; attempt < 2 && !topic && story.language !== 'it'; attempt += 1) {
       const raw = await complete({ system: SYSTEM, prompt: `Headline words: ${numbered(story)}\nSummary: ${story.summary ?? ''}`, maxTokens: 40, responseFormat: FORMAT });
-      if (raw === null) { if (!topics.length) return null; break; } // no writer at all: the plain bulletin
-      topic = storyTopic(raw, story);
+      if (raw === null) break;
+      available = true;
+      topic = storyTopic(raw, story)?.topic ?? null;
+      serious = seriousOf(raw) ?? serious;
     }
-    topics.push(topic);
+    topics.push({ topic, serious });
   }
+  if (!available) return null; // no writer at all: the plain bulletin
   const seed = stories.map((story) => story.id).join();
-  const teased = topics.filter((entry) => entry && !entry.serious).slice(0, 2);
+  const teased = topics.filter((entry) => entry?.topic && !entry.serious).slice(0, 2);
   const hook = teased.length === 2 ? pick(HOOKS, seed).replace('{a}', teased[0].topic).replace('{b}', teased[1].topic) : 'Here are the latest headlines.';
   const parts = [{ id: 'intro', speaker: hosts[0].speaker, text: `${greeting(now.getHours())}, this is LVX News. ${hook}` }];
   for (const [index, story] of stories.entries()) {
@@ -89,7 +96,8 @@ export async function writeNewsScript(stories, { complete, now = new Date(), hos
     // A story the model did not judge light gets the sober hand-over.
     const place = index === 0 ? 'first' : index === stories.length - 1 ? 'last' : found?.serious === false ? 'light' : 'serious';
     const lead = pick(leads[place], story.id).replace('{other}', other.name);
-    parts.push({ ...facts, speaker: host.speaker, text: `${lead} ${facts.text}` });
+    // `serious` (true, false, or null when unknown) is kept with the bulletin: a DJ mentions only stories judged light.
+    parts.push({ ...facts, speaker: host.speaker, text: `${lead} ${facts.text}`, serious: found.serious });
   }
   parts.push({ id: 'outro', speaker: hosts[0].speaker, text: pick(OUTROS, seed) });
   return parts;

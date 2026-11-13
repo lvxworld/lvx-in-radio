@@ -65,7 +65,7 @@ Women: `serena`, `sohee` (Relax, owner 5/5), `vivian` (EDM, 5/5). Men: `ryan`, `
 `src/radio/dj/prompts/`, no prompt text in code:
 
 - `writer/system.md`, `writer/rules.md`: the script-writer instructions (grounding rules below).
-- `writer/duo.md`: the two-host break; `writer/news.md`: one spoken sentence from a news story.
+- `writer/duo.md`: the two-host break.
 - `writer/fallback-templates.json`: sentence templates with `{title}`, `{mood}`, `{bpm}`, `{genre}` slots, per style preset. Used when the LLM is unavailable (tier 2) or a line fails validation twice.
 - `djs/<id>.json`: id, display name, speaker, gender, language, best-for stations, character sentence.
 - `styles/<preset>.json`: TTS `instruct` text and writer tone for the preset.
@@ -100,16 +100,19 @@ for both the snapshot (`coHost`, `coHostChosen` on each station) and production;
 of the same sex by a new DJ falls back to the automatic co-host.
 
 While News is on, a break may mention one story from the newest bulletin
-(`NewsDesk.headlines()`): at most once an hour, never the same story twice, English only.
-The writer retells it in one sentence from its headline and summary (`writer/news.md`);
-`validateNewsLine` rejects a sentence that does not credit the source or holds a number or
-capitalised word not in the source, and after two failures the headline is read as it is.
-The host who does not hand over reads it, just before the handoff. A break with news is
-cached under its own key, so a replay of the song never repeats old news.
+(`NewsDesk.headlines()`, only if that bulletin is under 90 minutes old): at most once an hour,
+never the same story twice, English only, and only a story the news writer judged light
+(`serious: false` in the bulletin; a grim headline next to banter would jar). The host who
+does not hand over reads its headline word for word (`headlineLine`), just before the
+handoff. The writer never retells news: asked to, the 4B swapped who did what, and no check
+on names and numbers can see that. A break with news is cached under its own key, so a
+replay of the song never repeats old news.
 
-Measured on this Mac (40 prompts, real model): 37/40 breaks valid on the first try, 39/40
-after the retry, 1.65 s each; news sentences were accurate for every BBC and NPR story tested
-(24/24, 0.5 s). Five voice clips take about 10 s (cold), about a third of their length warm.
+Measured on this Mac, an M5 Max (40 prompts, real model): 37/40 breaks valid on the first
+try, 39/40 after the retry, 1.65 s each. Five voice clips take about 10 s (cold), about a
+third of their length warm. A whole break with news took 20 s in the app, inside the 25 s
+warm estimate; watch `seconds` in `dj.log` if breaks on short LVX songs start ending as
+`not-enough-time`.
 
 ## Priority and concurrency (the important part)
 

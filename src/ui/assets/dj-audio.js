@@ -324,6 +324,8 @@ export class DjTalkOver {
 
   start() {
     if (!this.clip) return;
+    // On air wins: a sample still playing when the intro is due stops, so the two never share the chain.
+    this.stopPreview(0);
     if (this.phase !== 'ducking') this.duck();
     const el = this.voice = this.createAudio();
     el.preload = 'auto';
@@ -352,7 +354,8 @@ export class DjTalkOver {
    * A new sample replaces the previous one; a sample over an on-air voice stops that voice.
    */
   preview({ clip, preset }) {
-    if (this.phase === 'speaking') this.cancel('preview');
+    // A sample over an on-air voice stops it at once (no fade: the sample is about to raise the shared output).
+    if (this.phase === 'speaking') { this.disposeVoice(0); this.phase = 'skipped'; this.note('cancel', 'preview'); }
     this.stopPreview(0);
     if (preset) this.setPreset(preset);
     const el = this.previewVoice = this.createAudio();

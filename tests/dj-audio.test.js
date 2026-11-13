@@ -86,3 +86,23 @@ test('a DJ sample is never cut by arming the next intro or by the news, and neve
   assert.equal(dj.previewing, false);
   assert.equal(dj.tick({ position: dj.plan.startAt }), 'start', 'the intro still airs after the sample');
 });
+
+test('on air and a sample never share the voice chain: each one stops the other at once', async () => {
+  const { DjTalkOver } = await import('../src/ui/assets/dj-audio.js');
+  const { ctx, elements, createAudio } = fakeAudio();
+  const dj = new DjTalkOver({ ctx, destination: ctx.createGain(), createAudio });
+  const plan = dj.arm({ clip: { id: 'line', url: '/dj-audio/line', durationSec: 10 }, songDurationSec: 120 });
+  dj.tick({ position: plan.startAt });
+  const onAir = elements.at(-1);
+  assert.equal(dj.phase, 'speaking');
+  dj.preview({ clip: { id: 'sample', url: '/dj-audio/sample' } });
+  assert.equal(onAir.paused, true, 'the on-air voice stopped before the sample started');
+  assert.equal(dj.phase, 'skipped');
+  // A new intro comes due while a sample plays: on air wins.
+  const next = dj.arm({ clip: { id: 'line-2', url: '/dj-audio/line-2', durationSec: 10 }, songDurationSec: 120 });
+  const sample = elements.at(-1);
+  dj.tick({ position: next.startAt });
+  assert.equal(sample.paused, true);
+  assert.equal(dj.previewing, false);
+  assert.equal(dj.phase, 'speaking');
+});

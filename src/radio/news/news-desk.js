@@ -9,6 +9,8 @@ export const NEWS_STATION = { id: 'lvx-news', name: 'LVX News', k: 25 };
 
 const RETRY_MS = 15_000;
 const KEEP = 3;
+// A DJ mentions only news from a bulletin this recent.
+const HEADLINES_FRESH_MS = 90 * 60_000;
 const ID = /^news-[a-z0-9]{1,16}$/;
 const SETTINGS_VERSION = 2;
 const MAX_CUSTOM_FEEDS = 8;
@@ -89,8 +91,14 @@ export class NewsDesk extends EventEmitter {
     return { ...this.#settings, feeds: this.feeds(), station: NEWS_STATION, status, missing: this.#missing, nextAt: this.#settings.enabled ? new Date(this.#target(this.#now())).toISOString() : null, latest, due: this.#due, error: this.#error };
   }
 
-  /** The newest bulletin's stories while News is on: the only news a DJ may mention. */
-  headlines() { return this.#settings.enabled ? this.#bulletins.at(-1)?.stories ?? [] : []; }
+  /**
+   * The stories a DJ may mention: the newest bulletin's, while News is on and only if it is recent
+   * (bulletins survive a restart; yesterday's news must not sound current).
+   */
+  headlines() {
+    const latest = this.#settings.enabled ? this.#bulletins.at(-1) : null;
+    return latest && this.#now() - Date.parse(latest.readyAt) < HEADLINES_FRESH_MS ? latest.stories : [];
+  }
 
   isUrgent() {
     if (!this.#settings.enabled) return false;
@@ -318,7 +326,7 @@ export class NewsDesk extends EventEmitter {
         id, readyAt: new Date(this.#now()).toISOString(), forHour: scheduled ? target : 0, durationSec: timeline.totalSamples / timeline.sampleRate,
         stories: stories.map((story) => {
           const span = timeline.voice.find((entry) => entry.id === story.id);
-          return { id: story.id, title: story.title, summary: story.summary ?? '', language: story.language ?? 'en', source: story.source, link: story.link, startSec: span.startSec, endSec: span.endSec };
+          return { id: story.id, title: story.title, summary: story.summary ?? '', language: story.language ?? 'en', serious: parts.find((part) => part.id === story.id)?.serious ?? null, source: story.source, link: story.link, startSec: span.startSec, endSec: span.endSec };
         }),
       };
       await mkdir(this.#dir, { recursive: true });
