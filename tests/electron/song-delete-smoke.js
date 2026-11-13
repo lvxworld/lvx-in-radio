@@ -1,0 +1,81 @@
+// Real renderer and local deletion API, disposable audio, no inference or ordinary user data.
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, stat, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { app, BrowserWindow } from 'electron';
+import { loadConfig } from '../../src/config.js';
+import { startRadio } from '../../src/start.js';
+import { Library, bucketFor } from '../../src/radio/library.js';
+import { StationStore } from '../../src/radio/stations.js';
+import { writeWav } from '../../src/engine/wav.js';
+
+const root = process.env.LVX_TEST_ROOT ?? resolve(import.meta.dirname, '../..');
+const data = await mkdtemp(join(tmpdir(), 'lvx-delete-ui-'));
+app.setPath('userData', join(data, 'chromium'));
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+app.on('window-all-closed', () => {});
+app.whenReady().then(async () => {
+app.dock?.hide();
+let radio, window;
+const errors = [];
+try {
+  const config = { mix: { Pop: 100 }, energy: 25, bpm: 80, dark: 30, melody: true, mood: 'Sunday light', seed: 7 };
+  const library = new Library(join(data, 'library')); await library.load();
+  const stations = new StationStore(join(data, 'stations.json')); await stations.load();
+  const saved = await stations.open(config, { chosenName: 'Deletion test' });
+  const wav = writeWav({ sampleRate: 24000, samples: [Float32Array.from({ length: 24000 * 60 }, (_, i) => .01 * Math.sin(i / 13))] });
+  for (let i = 0; i < 2; i++) await library.add({ id: `delete-test-${i}`, title: i ? 'The next song' : 'A song to delete', stationId: saved.id, bucket: bucketFor(config), generation: config, durationSec: 60, createdAt: new Date(i * 1000).toISOString() }, wav);
+  radio = await startRadio({ ...loadConfig({}, { dataDir: data, modelDir: join(data, 'missing'), engineBinary: join(data, 'missing-engine'), modelSpecs: data }), uiDir: join(root, 'src/ui'), port: 0 });
+  const api = async (path, body) => { const response = await fetch(radio.address + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); assert.ok(response.ok, await response.clone().text()); return response.json(); };
+  await api('/api/live/settings', { enabled: false, url: '', refreshMinutes: 30 });
+  await api('/api/tune', { stationId: saved.id, config, fromLibrary: true, paused: true });
+  await api('/api/generation', { enabled: false });
+  window = new BrowserWindow({ show: true, width: 1120, height: 720, useContentSize: true, webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false } });
+  window.webContents.setAudioMuted(true);
+  window.webContents.on('console-message', (event) => { if (event.level === 'error') errors.push(event.message); });
+  const read = expression => window.webContents.executeJavaScript(expression, true);
+  const wait = async (expression, label) => { const until = Date.now() + 12000; while (Date.now() < until) { if (await read(expression)) return; await delay(50); } throw new Error('Timed out: ' + label); };
+  await window.loadURL(radio.address);
+  await wait("document.querySelector('.transport-title strong')?.textContent==='A song to delete'", 'generated station');
+  const button = ".transport-title button[title='Delete this song from your Mac']";
+  await read(`document.querySelector(${JSON.stringify(button)}).click()`);
+  await wait("document.querySelector('.song-delete-dialog')?.open", 'confirmation');
+  assert.equal(await read("document.querySelector('.song-delete-name').textContent"), 'A song to delete');
+  assert.match(await read("document.querySelector('#song-delete-detail').textContent"), /2.9 MB/);
+  assert.equal(await read("document.activeElement.className"), 'song-delete-cancel');
+  assert.equal(await read("(()=>{const r=document.querySelector('.song-delete-dialog').getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth})()"), true);
+  await read('document.fonts.ready.then(()=>true)');
+  await read('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
+  await delay(350);
+  await mkdir('/private/tmp/lvx-pr12-delete-preview', { recursive: true });
+  await writeFile('/private/tmp/lvx-pr12-delete-preview/confirmation-1120x720.png', (await window.webContents.capturePage()).toPNG());
+  await read("document.querySelector('.song-delete-cancel').click()");
+  assert.ok(await stat(library.audioPath('delete-test-0')));
+  await read(`document.querySelector(${JSON.stringify(button)}).click()`);
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'ESC' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'ESC' });
+  await wait("!document.querySelector('.song-delete-dialog').open", 'Escape cancels');
+  assert.ok(await stat(library.audioPath('delete-test-0')));
+  await read("document.querySelector('.transport-play').click()");
+  await wait("document.querySelector('.transport-play').getAttribute('aria-label')==='Pause'", 'play before deletion');
+  await read(`document.querySelector(${JSON.stringify(button)}).click();window.deleteOriginal=window.LvxRadio.deleteSong;window.LvxRadio.deleteSong=async()=>{throw new Error('Disk is unavailable')};document.querySelector('.song-delete-confirm').click()`);
+  await wait("!document.querySelector('.song-delete-error').hidden", 'visible deletion error');
+  assert.ok(await stat(library.audioPath('delete-test-0')));
+  assert.equal(await read("document.querySelector('.song-delete-dialog').open"), true);
+  await read("window.LvxRadio.deleteSong=window.deleteOriginal;document.querySelector('.song-delete-confirm').click()");
+  await wait("!document.querySelector('.song-delete-dialog').open&&document.querySelector('.transport-title strong')?.textContent==='The next song'", 'deleted and advanced');
+  await assert.rejects(stat(library.audioPath('delete-test-0')), { code: 'ENOENT' });
+  assert.equal(await read("document.querySelector('.transport-play').getAttribute('aria-label')"), 'Pause', 'the successor keeps playing');
+  await wait("document.body.textContent.includes('Song deleted')", 'success feedback');
+  await read(`document.querySelector(${JSON.stringify(button)}).click();document.querySelector('.song-delete-confirm').click()`);
+  await wait("!document.querySelector('.song-delete-dialog').open", 'last song deletion');
+  await assert.rejects(stat(library.audioPath('delete-test-1')), { code: 'ENOENT' });
+  assert.equal(await read("document.querySelector('.transport-play').getAttribute('aria-label')"), 'Play', 'the empty station pauses');
+  assert.deepEqual(errors, []);
+  console.log('PASS real UI: tooltip, confirmation, Cancel, disk error, delete, successor, last song, 1120 × 720; no renderer errors');
+} catch (error) { console.error(error); console.error('Renderer errors:', errors); process.exitCode = 1; }
+finally { window?.destroy(); await radio?.close(); await rm(data, { recursive: true, force: true }); app.exit(process.exitCode ?? 0); }
+
+});

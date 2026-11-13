@@ -115,56 +115,53 @@ const intro = (d) => d.dj.snapshot().introduction ?? null;
 
 test('a news-urgent skip keeps the slot due: the DJ speaks on the same song as soon as News lets go', async (t) => {
   const d = await desk(t);
-  d.consider(d.playing(1));
   d.flag.urgent = true;
-  d.consider(d.playing(2));
+  d.consider(d.playing(1));
   await delay(20);
   assert.equal(intro(d).state, 'refused');
   assert.equal(intro(d).reason, 'news-urgent');
   assert.equal(d.engine.requests.length, 0);
   assert.equal(d.dj.snapshot().nextSlot.remainingSongs, 0, 'still due: the skip did not reset the counter');
-  d.consider(d.playing(2)); // a progress report while News is still busy
+  d.consider(d.playing(1)); // a progress report while News is still busy
   await delay(20);
   assert.equal(d.engine.requests.length, 0);
   d.flag.urgent = false;
-  d.consider(d.playing(2)); // the next report on the SAME song, News done
+  d.consider(d.playing(1)); // the next report on the SAME song, News done
   assert.ok(await waitFor(() => intro(d)?.state === 'armed'), `armed after News: ${JSON.stringify(intro(d))}`);
-  assert.equal(intro(d).songId, 's2');
-  assert.equal(intro(d).nextSongId, 's3');
+  assert.equal(intro(d).songId, 's1');
+  assert.equal(intro(d).nextSongId, 's2');
 });
 
 test('a skip writes one dj.log line per song and reason, with the gate values', async (t) => {
   const d = await desk(t);
-  d.consider(d.playing(1));
   d.flag.urgent = true;
-  for (let i = 0; i < 4; i++) d.consider(d.playing(2));
+  for (let i = 0; i < 4; i++) d.consider(d.playing(1));
   await delay(50);
   let skips = (await d.log()).filter((line) => line.status === 'skipped');
   assert.equal(skips.length, 1, JSON.stringify(skips));
   const [skip] = skips;
   assert.equal(skip.reason, 'news-urgent');
-  assert.equal(skip.songId, 's2');
+  assert.equal(skip.songId, 's1');
   assert.equal(skip.stationId, 'lux-pop');
   assert.equal(skip.mode, 'slot');
-  for (const field of ['songsSince', 'due', 'fresh', 'runwaySec', 'warm', 'next', 'lux']) assert.ok(field in skip, `the line has ${field}`);
-  assert.equal(skip.songsSince, 2);
+  for (const field of ['songsSince', 'due', 'runwaySec', 'warm', 'next', 'lux']) assert.ok(field in skip, `the line has ${field}`);
+  assert.equal(skip.songsSince, 1);
   // A new song with the same reason is logged again; the same song with the same reason is not.
-  for (let i = 0; i < 3; i++) d.consider(d.playing(3));
+  for (let i = 0; i < 3; i++) d.consider(d.playing(2));
   await delay(50);
   skips = (await d.log()).filter((line) => line.status === 'skipped');
-  assert.deepEqual(skips.map((line) => `${line.songId}:${line.reason}`), ['s2:news-urgent', 's3:news-urgent']);
+  assert.deepEqual(skips.map((line) => `${line.songId}:${line.reason}`), ['s1:news-urgent', 's2:news-urgent']);
 });
 
 test('a not-enough-time skip is logged too, and it starts the cadence over', async (t) => {
   const d = await desk(t);
-  d.consider({ ...d.playing(1), stationId: 'listener-1', lux: false });
   // A listener station (Lux would aim at the next song instead): one second left is not enough.
-  d.consider({ ...d.playing(2), stationId: 'listener-1', lux: false, runwaySec: 1 });
+  d.consider({ ...d.playing(1), stationId: 'listener-1', lux: false, runwaySec: 1 });
   await delay(50);
   const skips = (await d.log()).filter((line) => line.status === 'skipped');
   assert.deepEqual(skips.map((line) => line.reason), ['not-enough-time']);
   assert.equal(skips[0].runwaySec, 1);
-  d.consider({ ...d.playing(2), stationId: 'listener-1', lux: false, runwaySec: 1 });
+  d.consider({ ...d.playing(1), stationId: 'listener-1', lux: false, runwaySec: 1 });
   assert.equal(d.dj.snapshot().nextSlot.remainingSongs, 1, 'unlike news-urgent, a refused slot waits for the next song');
 });
 
@@ -177,7 +174,7 @@ test('changing the cadence while tuned retargets the station on air', async (t) 
   assert.equal(d.engine.requests.length, 0, 'not due at song 2 with 4-4');
   await d.dj.configure({ minSongs: 1, maxSongs: 1 });
   d.consider(d.playing(2)); // the next progress report on the same song
-  assert.equal(d.dj.snapshot().nextSlot.afterSongs, 2, 'the fresh guard keeps 2 for the first break after tuning');
+  assert.equal(d.dj.snapshot().nextSlot.afterSongs, 1);
   assert.equal(d.dj.snapshot().nextSlot.remainingSongs, 0);
   assert.ok(await waitFor(() => intro(d)?.state === 'armed'), 'the new 1-1 cadence speaks on song 2 without a retune');
   // After that break, 1-1 means every song.
@@ -192,6 +189,5 @@ test('the 1-1 DJ is not blocked by a real NewsDesk at 11:02 with the ready card 
   const news = await newsAfterBulletin(t, 2);
   const d = await desk(t, { newsUrgent: () => news.desk.isUrgent() });
   d.consider(d.playing(1));
-  d.consider(d.playing(2));
   assert.ok(await waitFor(() => intro(d)?.state === 'armed'), `armed at 11:02: ${JSON.stringify(intro(d))}`);
 });

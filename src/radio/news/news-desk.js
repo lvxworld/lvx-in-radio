@@ -9,6 +9,8 @@ export const NEWS_STATION = { id: 'lvx-news', name: 'LVX News', k: 25 };
 
 const RETRY_MS = 15_000;
 const KEEP = 3;
+// A DJ mentions only news from a bulletin this recent.
+const HEADLINES_FRESH_MS = 90 * 60_000;
 const ID = /^news-[a-z0-9]{1,16}$/;
 const SETTINGS_VERSION = 2;
 const MAX_CUSTOM_FEEDS = 8;
@@ -27,7 +29,7 @@ async function writeAtomic(path, data) {
  * LiveRadio: snapshot(), configure(), and a 'change' event.
  */
 export class NewsDesk extends EventEmitter {
-  #path; #dir; #availability; #fetchStories; #render; #mix; #acquire;
+  #path; #dir; #availability; #fetchStories; #render; #mix; #acquire; #writeScript;
   #now; #setTimer; #clearTimer; #leadMs; #lateMs; #canProduce; #requestHold; #cancelWait = null;
   #defaults; #probe; #manualWait = null;
   #settings = { enabled: false };
@@ -36,9 +38,9 @@ export class NewsDesk extends EventEmitter {
   #due = null; #error = null; #missing = [];
   #producing = null; #timer = null; #dueTimer = null; #lastAttempt = 0; #closed = false; #started = false;
 
-  constructor({ path, dir, availability, fetchStories, render, mix, acquire = () => () => {}, requestHold = null, canProduce = () => true, defaultFeeds = [], probeFeed = null, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, leadMs = 10 * 60_000, lateMs = 5 * 60_000 }) {
+  constructor({ path, dir, availability, fetchStories, render, mix, writeScript = null, acquire = () => () => {}, requestHold = null, canProduce = () => true, defaultFeeds = [], probeFeed = null, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, leadMs = 10 * 60_000, lateMs = 5 * 60_000 }) {
     super();
-    this.#path = path; this.#dir = dir; this.#availability = availability; this.#fetchStories = fetchStories; this.#render = render; this.#mix = mix;
+    this.#path = path; this.#dir = dir; this.#availability = availability; this.#fetchStories = fetchStories; this.#render = render; this.#mix = mix; this.#writeScript = writeScript;
     this.#acquire = acquire; this.#requestHold = requestHold; this.#canProduce = canProduce; this.#now = now; this.#setTimer = setTimer; this.#clearTimer = clearTimer; this.#leadMs = leadMs; this.#lateMs = lateMs;
     this.#defaults = defaultFeeds; this.#probe = probeFeed;
   }
@@ -87,6 +89,15 @@ export class NewsDesk extends EventEmitter {
     const latest = this.#bulletins.at(-1) ?? null;
     const status = !this.#settings.enabled ? 'off' : this.#producing || this.#manualWait ? 'producing' : this.#error ? 'error' : latest ? 'ready' : 'idle';
     return { ...this.#settings, feeds: this.feeds(), station: NEWS_STATION, status, missing: this.#missing, nextAt: this.#settings.enabled ? new Date(this.#target(this.#now())).toISOString() : null, latest, due: this.#due, error: this.#error };
+  }
+
+  /**
+   * The stories a DJ may mention: the newest bulletin's, while News is on and only if it is recent
+   * (bulletins survive a restart; yesterday's news must not sound current).
+   */
+  headlines() {
+    const latest = this.#settings.enabled ? this.#bulletins.at(-1) : null;
+    return latest && this.#now() - Date.parse(latest.readyAt) < HEADLINES_FRESH_MS ? latest.stories : [];
   }
 
   isUrgent() {
@@ -301,7 +312,12 @@ export class NewsDesk extends EventEmitter {
     try {
       const stories = await this.#fetchStories(this.#activeFeeds());
       if (!stories.length) throw new Error('No news available right now.');
-      const parts = composeScript(stories, new Date(target ?? this.#now()));
+      const at = new Date(target ?? this.#now());
+      // The podcast script when the writer can run; the plain bulletin otherwise, or if writing fails.
+      let parts = null;
+      try { parts = await this.#writeScript?.(stories, at); } catch (error) { console.warn('News writer failed; reading the plain bulletin:', error.message); }
+      if (this.#closed) return;
+      parts ??= composeScript(stories, at);
       const voices = await this.#render(parts);
       if (this.#closed) return;
       const { wav, timeline } = this.#mix({ voices });
@@ -310,7 +326,7 @@ export class NewsDesk extends EventEmitter {
         id, readyAt: new Date(this.#now()).toISOString(), forHour: scheduled ? target : 0, durationSec: timeline.totalSamples / timeline.sampleRate,
         stories: stories.map((story) => {
           const span = timeline.voice.find((entry) => entry.id === story.id);
-          return { id: story.id, title: story.title, source: story.source, link: story.link, startSec: span.startSec, endSec: span.endSec };
+          return { id: story.id, title: story.title, summary: story.summary ?? '', language: story.language ?? 'en', serious: parts.find((part) => part.id === story.id)?.serious ?? null, source: story.source, link: story.link, startSec: span.startSec, endSec: span.endSec };
         }),
       };
       await mkdir(this.#dir, { recursive: true });

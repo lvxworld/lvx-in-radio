@@ -7,7 +7,7 @@ import { ModelMissingError } from '../engine/availability.js';
 import { scoreFromPlan } from './instrumental.js';
 import { bucketFor } from './library.js';
 import { buildStyle, validateConfig } from './style.js';
-import { DJ_IDS, stationDj } from './dj/dj-style.js';
+import { DJ_IDS, stationCoHostChoice, stationDj, styleFor } from './dj/dj-style.js';
 
 const SEMANTIC_FRAMES_PER_SECOND = 25;
 const MIN_TRACK_SECONDS = 60;
@@ -166,19 +166,23 @@ export class RadioStation extends EventEmitter {
       const { trackId, positionSec, playing, at } = session.playback;
       const played = positionSec + (playing ? (Date.now() - at) / 1000 : 0);
       const remaining = current?.durationSec > 0 ? Math.max(current.durationSec - played, 0) : 0;
-      return { stationId: session.station.id, stationName: session.station.name, stationDescription: session.station.quote ?? '', playbackSessionId: session.id, lux: true, live: session.station.live === true, playing: session.playback.playing, busy: Boolean(this.#job || this.#holds), djId: this.#dj?.luxDj?.(session.station).dj ?? null, current, next: upcoming[0] ?? null, after: upcoming[1] ?? null, config: session.config, runwaySec: remaining, songEstimateSec: 0, playbackTrackId: trackId };
+      return { stationId: session.station.id, stationName: session.station.name, stationDescription: session.station.quote ?? '', playbackSessionId: session.id, lux: true, live: session.station.live === true, playing: session.playback.playing, busy: Boolean(this.#job || this.#holds), djId: this.#dj?.luxDj?.(session.station).dj ?? null, coHostChoice: this.#dj?.luxCoHostChoice?.(session.station), current, next: upcoming[0] ?? null, after: upcoming[1] ?? null, config: session.config, runwaySec: remaining, songEstimateSec: 0, playbackTrackId: trackId };
     }
-    return { stationId: session.station.id, stationName: session.station.name, playbackSessionId: session.id, lux: false, playing: session.playback.playing, busy: Boolean(this.#job || this.#holds), djId: stationDj(session.station).dj, current, next, config: session.config, runwaySec: this.#runwaySeconds(session), songEstimateSec: session.generationEnabled ? this.#estimateFor(session.config) : 0, playbackTrackId: session.playback.trackId };
+    return { stationId: session.station.id, stationName: session.station.name, playbackSessionId: session.id, lux: false, playing: session.playback.playing, busy: Boolean(this.#job || this.#holds), djId: stationDj(session.station).dj, coHostChoice: stationCoHostChoice(session.station), current, next, config: session.config, runwaySec: this.#runwaySeconds(session), songEstimateSec: session.generationEnabled ? this.#estimateFor(session.config) : 0, playbackTrackId: session.playback.trackId };
   }
 
-  /** Chooses this station's DJ only: a DJ id, null for "No DJ", or 'default' to go back to the style default. */
-  async setDj(id, djId) {
+  /**
+   * Chooses this station's DJ (role 'dj': a DJ id, null for "No DJ") or its co-host (role 'coHost':
+   * a DJ id, null for "talks alone"); 'default' goes back to the automatic choice.
+   */
+  async setDj(id, djId, role = 'dj') {
     if (!DJ_IDS.includes(djId) && djId !== null && djId !== 'default') throw new RangeError('Unknown DJ');
+    if (role !== 'dj' && role !== 'coHost') throw new RangeError('Unknown DJ role');
     const lux = this.#catalog?.station(id);
     if (lux) {
       // LVX choices live in dj-settings.json, never in stations.json.
       if (!this.#dj?.setLuxDj) throw new RangeError('Unknown station');
-      const result = await this.#dj.setLuxDj(lux, djId);
+      const result = await this.#dj.setLuxDj(lux, djId, role);
       if (this.#session?.station.id === id) await this.#dj.cancel('station DJ changed');
       this.#dj.consider(this.djContext());
       this.emit('change');
@@ -186,7 +190,7 @@ export class RadioStation extends EventEmitter {
     }
     const record = this.#stations.get(id);
     if (!record) throw new RangeError('Unknown station');
-    await this.#stations.setDj(id, djId);
+    await this.#stations.setDj(id, djId, role);
     if (this.#session?.station.id === id) await this.#dj?.cancel('station DJ changed');
     this.#dj?.consider(this.djContext());
     this.emit('change');
@@ -345,6 +349,31 @@ export class RadioStation extends EventEmitter {
     this.emit('change');
   }
 
+  /** Deletes only generated library audio; catalog and Live feedback stay separate. */
+  async deleteSong(trackId) {
+    if (typeof trackId !== 'string' || !this.#library.get(trackId) || this.#catalog?.has(trackId)) throw new RangeError('Unknown generated song');
+    const freedBytes = await this.#library.deleteSong(trackId);
+    const session = this.#session;
+    let nextTrackId = session?.playback.trackId ?? null;
+    if (session) {
+      const index = session.tracks.findIndex(track => track.id === trackId);
+      const current = session.playback.trackId === trackId;
+      const next = current ? [...session.tracks.slice(index + 1), ...session.tracks.slice(0, index)].find(track => track.status === 'ready' && track.id !== trackId) : null;
+      session.tracks = session.tracks.filter(track => track.id !== trackId);
+      if (current) {
+        nextTrackId = next?.id ?? null;
+        session.playback = { trackId: nextTrackId, positionSec: 0, playing: Boolean(next && session.playback.playing), at: Date.now() };
+        if (!next) session.held = true;
+      }
+      // Cancel an intro aimed at the removed song before replanning the queue.
+      if (index >= 0) await this.#dj?.cancel('song deleted');
+    }
+    await this.#dj?.rejectSong(trackId);
+    if (session === this.#session && session) this.#plan(session);
+    this.emit('change');
+    return { trackId, freedBytes, nextTrackId, sessionId: session?.id ?? null };
+  }
+
   audioPath(trackId) {
     return this.#catalog?.audioPath(trackId) ?? this.#library.audioPath(trackId);
   }
@@ -393,6 +422,14 @@ export class RadioStation extends EventEmitter {
     this.catalogChanged();
   }
 
+  /** A station's DJ and the co-host who talks with it, as the snapshot shows them. */
+  #djPair({ id, config, lux, live, dj, coHost }) {
+    const own = !lux && !live;
+    const pick = own ? stationDj({ dj, config }) : this.#dj?.luxDj ? this.#dj.luxDj({ id, config }) : {};
+    if (!pick.dj || !this.#dj?.coHost) return pick;
+    return { ...pick, ...this.#dj.coHost(pick.dj, styleFor(config), own ? stationCoHostChoice({ coHost }) : this.#dj.luxCoHostChoice({ id })) };
+  }
+
   engineStatus() {
     return this.#availability();
   }
@@ -400,7 +437,7 @@ export class RadioStation extends EventEmitter {
   snapshot() {
     const session = this.#session;
     const stations = [...(this.#catalog?.stations() ?? []), ...this.#stations.list()].map(
-      ({ id, k, name, quote, config, lastPlayedAt, firstSeed, lux = false, live = false, genre, dj }) => ({
+      ({ id, k, name, quote, config, lastPlayedAt, firstSeed, lux = false, live = false, genre, dj, coHost }) => ({
         id,
         k,
         name,
@@ -411,7 +448,7 @@ export class RadioStation extends EventEmitter {
         lux,
         live,
         genre,
-        ...(!lux && !live ? stationDj({ dj, config }) : this.#dj?.luxDj ? this.#dj.luxDj({ id, config }) : {}),
+        ...this.#djPair({ id, config, lux, live, dj, coHost }),
         songCount: lux ? this.#catalog.countForStation(id) : this.#library.countForStation(id),
       }),
     );
@@ -423,6 +460,7 @@ export class RadioStation extends EventEmitter {
       stations,
       error: session.error,
       tracks: session.tracks,
+      playbackTrackId: session.playback.trackId,
       generation: {
         enabled: session.generationEnabled,
         active: this.#jobFor(session),
@@ -605,6 +643,7 @@ export class RadioStation extends EventEmitter {
       ...(song.remoteUrl ? { source:'remote', remoteUrl:song.remoteUrl, remoteOrigin:song.remoteOrigin, mediaKey:song.mediaKey } : {}),
       generation: song.generation,
       durationSec: song.durationSec,
+      sizeBytes: song.sizeBytes,
       truncated: song.truncated,
       liked: song.liked,
       createdAt: song.createdAt,
@@ -853,7 +892,7 @@ export class RadioStation extends EventEmitter {
     const mode = song.generation.instrumental ? 'instrumental' : 'sung';
     this.#estimates[mode] += (elapsedSec - this.#estimates[mode]) * ESTIMATE_SMOOTHING;
     await this.#library.evict(protectedIds.add(song.id));
-    return { durationSec, truncated };
+    return { durationSec, truncated, sizeBytes: wav.length };
   }
 
   #recordFailure(session, track, error) {

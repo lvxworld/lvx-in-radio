@@ -101,53 +101,49 @@ test('the cadence refuses a minimum above the maximum', async (t) => {
   await assert.rejects(f.dj.configure({ minSongs: 2 }), TypeError);
 });
 
-test('1 to 1 never speaks on the first song after tuning, then introduces every following song', async (t) => {
+test('1 to 1 introduces every song, starting with the first one after tuning', async (t) => {
   const f = await fixture(t);
   await f.dj.configure({ enabled: true, minSongs: 1, maxSongs: 1 });
-  play(f, 1);
-  assert.equal(f.station.holds.length, 0, 'no DJ over the first song after tuning in');
-  assert.ok(!['preparing', 'armed'].includes(f.dj.snapshot().introduction?.state));
-  for (let n = 2; n <= 5; n++) {
+  for (let n = 1; n <= 4; n++) {
     play(f, n);
-    assert.equal(f.station.holds.length, n - 1, `song ${n} gets its introduction`);
+    assert.equal(f.station.holds.length, n, `song ${n} gets its introduction`);
     await waitFor(() => f.dj.snapshot().introduction?.state === 'armed');
     assert.equal(f.dj.snapshot().introduction.nextSongId, song(n + 1).id);
   }
   assert.equal(f.engine.requests.length, 4);
 });
 
-test('1 to 1: retuning (a new playback session) again skips the first song', async (t) => {
-  const f = await fixture(t);
-  await f.dj.configure({ enabled: true, minSongs: 1, maxSongs: 1 });
-  play(f, 1); play(f, 2);
-  await waitFor(() => f.dj.snapshot().introduction?.state === 'armed');
-  assert.equal(f.station.holds.length, 1);
-  play(f, 10, { playbackSessionId: 'session-2' });
-  assert.equal(f.station.holds.length, 1, 'the first song of the new session gets no DJ');
-  play(f, 11, { playbackSessionId: 'session-2' });
-  assert.equal(f.station.holds.length, 2, 'the second song of the new session does');
-});
-
-test('1 to 1: moving to another station also skips its first song', async (t) => {
+test('1 to 1: retuning (a new playback session) speaks on its first song too', async (t) => {
   const f = await fixture(t);
   await f.dj.configure({ enabled: true, minSongs: 1, maxSongs: 1 });
   play(f, 1);
-  play(f, 20, { stationId: 'station-b', playbackSessionId: 'session-b' });
-  assert.equal(f.station.holds.length, 0);
-  play(f, 21, { stationId: 'station-b', playbackSessionId: 'session-b' });
-  assert.equal(f.station.holds.length, 1);
+  await waitFor(() => f.dj.snapshot().introduction?.state === 'armed');
+  play(f, 10, { playbackSessionId: 'session-2' });
+  assert.equal(f.station.holds.length, 2, 'the first song of the new session gets its DJ');
 });
 
-test('1 to N: the first song after tuning is still never a slot, whatever the seed', async (t) => {
+test('1 to 1: moving to another station speaks on its first song', async (t) => {
+  const f = await fixture(t);
+  await f.dj.configure({ enabled: true, minSongs: 1, maxSongs: 1 });
+  play(f, 1);
+  await waitFor(() => f.dj.snapshot().introduction?.state === 'armed');
+  play(f, 20, { stationId: 'station-b', playbackSessionId: 'session-b' });
+  assert.equal(f.station.holds.length, 2);
+});
+
+test('1 to N: the first slot after tuning comes after 1 to N songs, counting the first song', async (t) => {
+  const due = new Set();
   for (const seed of [0, 1, 2, 3, 4, 5, 6, 7]) {
     const f = await fixture(t);
     await f.dj.configure({ enabled: true, minSongs: 1, maxSongs: 4 });
     play(f, 1, { config: { ...playing(1).config, seed } });
-    assert.equal(f.station.holds.length, 0, `seed ${seed}`);
     const { afterSongs, remainingSongs } = f.dj.snapshot().nextSlot;
     assert.ok(afterSongs >= 1 && afterSongs <= 4, `seed ${seed}: afterSongs ${afterSongs}`);
-    assert.ok(remainingSongs >= 1, `seed ${seed}: a slot is never due right now on the first song`);
+    assert.equal(remainingSongs, afterSongs - 1, `seed ${seed}: the first song already counts`);
+    assert.equal(f.station.holds.length, afterSongs === 1 ? 1 : 0, `seed ${seed}`);
+    due.add(afterSongs);
   }
+  assert.ok(due.has(1), 'some seeds speak on the very first song');
 });
 
 test('the settings API accepts a 1 to 1 cadence and refuses 0 with 400', async (t) => {

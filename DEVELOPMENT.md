@@ -16,6 +16,7 @@ npm ci
 npm test              # fake engine, no GPU or model needed
 npm run test:menu-bar # Native mini player, playback and generation controls; no model needed
 npm run test:live-ui  # Electron renderer: settings, Describe, QR PNG round-trip, Live playback; no model needed
+node node_modules/electron/cli.js tests/electron/song-delete-smoke.js # Song deletion confirmation and playback; disposable data, no model
 npm start             # browser UI at http://127.0.0.1:8787
 npm run fetch-engine  # pinned audio.cpp release, checksum verified
 npm run fetch-dj-llm  # pinned llama.cpp llama-server for the DJ writer (vendor/dj-llm), checksum verified
@@ -38,6 +39,22 @@ caches. A separate macOS test account is the next level of isolation.
 To reuse a test folder, set `LVX_FRESH_DIR` to an existing folder before running
 `npm run fresh`. A second launch focuses the existing app; quit it first for a new
 test session.
+
+### Deleting generated songs
+
+The player's X asks for confirmation before deleting a generated song's WAV,
+metadata and associated DJ clips. It reports the freed song-file bytes and moves
+to the next available song, preserving playback or pause. Deleting the last song
+pauses and keeps the saved station. Included and Live stations keep their separate
+“Don't play again” feedback; unliking a song keeps its files.
+
+`POST /api/songs/delete` accepts `{ "trackId": "..." }` for a generated library
+song only and returns `{ trackId, freedBytes, nextTrackId, sessionId }`. Unknown
+or catalog IDs are rejected with HTTP 400. `node --test tests/song-delete.test.js`
+covers files on disk, restart, queue behavior, disk errors and this local API;
+it requires permission to listen on loopback, with no model or external service.
+The Electron deletion check also accepts `LVX_TEST_ROOT` pointing to a built
+`app.asar` to exercise its packaged HTML, scripts and styles.
 
 ### DJ audition clips
 

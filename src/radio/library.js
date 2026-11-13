@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 const MAX_UNLIKED_PER_BUCKET = 12;
@@ -36,6 +36,7 @@ export function bucketFor({ mix, energy, instrumental }) {
 export class Library {
   #root;
   #songs = new Map();
+  #songWrites = new Map();
 
   constructor(root) {
     this.#root = root;
@@ -109,19 +110,40 @@ export class Library {
   }
 
   async add(song, wav) {
-    const stored = { liked: false, disliked: false, lastPlayedAt: null, sizeBytes: wav.length, ...song };
-    await mkdir(join(this.#root, stored.bucket), { recursive: true });
-    await writeFile(this.audioPath(stored.id) ?? join(this.#root, stored.bucket, `${stored.id}.wav`), wav);
-    this.#songs.set(stored.id, stored);
-    await this.#save(stored);
-    return stored;
+    return this.#writeSong(song.id, async () => {
+      const stored = { liked: false, disliked: false, lastPlayedAt: null, sizeBytes: wav.length, ...song };
+      await mkdir(join(this.#root, stored.bucket), { recursive: true });
+      await writeFile(this.audioPath(stored.id) ?? join(this.#root, stored.bucket, `${stored.id}.wav`), wav);
+      this.#songs.set(stored.id, stored);
+      await this.#save(stored);
+      return stored;
+    });
   }
 
   update(id, changes) {
-    const song = this.#songs.get(id);
-    if (!song) throw new RangeError('Unknown song');
-    Object.assign(song, changes);
-    return this.#save(song);
+    return this.#writeSong(id, async () => {
+      const song = this.#songs.get(id);
+      if (!song) throw new RangeError('Unknown song');
+      Object.assign(song, changes);
+      await this.#save(song);
+    });
+  }
+
+  /** Explicit listener deletion may remove a favourite too, after UI confirmation. */
+  async deleteSong(id) {
+    return this.#writeSong(id, async () => {
+      const song = this.#songs.get(id);
+      if (!song) throw new RangeError('Unknown generated song');
+      return this.#remove(song);
+    });
+  }
+
+  /** A pending playback/heart save must finish before deletion, and never recreate its files. */
+  #writeSong(id, operation) {
+    const previous = this.#songWrites.get(id) ?? Promise.resolve();
+    const next = previous.catch(() => {}).then(operation);
+    this.#songWrites.set(id, next);
+    return next.finally(() => { if (this.#songWrites.get(id) === next) this.#songWrites.delete(id); });
   }
 
   /** Removes rejected songs, then other songs over the limits, stalest first. */
@@ -145,7 +167,12 @@ export class Library {
     for (const song of removable) {
       const count = bucketCounts.get(song.bucket);
       if (!song.disliked && count <= MAX_UNLIKED_PER_BUCKET && totalBytes <= MAX_UNLIKED_BYTES) continue;
-      await this.#remove(song);
+      const removed = await this.#writeSong(song.id, async () => {
+        if (this.#songs.get(song.id) !== song || (!song.disliked && isKept(song))) return false;
+        await this.#remove(song);
+        return true;
+      });
+      if (!removed) continue;
       bucketCounts.set(song.bucket, count - 1);
       totalBytes -= song.sizeBytes;
     }
@@ -153,9 +180,31 @@ export class Library {
 
   async #remove(song) {
     const audio = this.audioPath(song.id);
+    const paths = [audio.replace(/\.wav$/, '.json'), audio.replace(/\.wav$/, '.tmp'), audio];
+    const files = [];
+    // Check every file before changing anything; retain the small sidecars for rollback.
+    for (const path of paths) {
+      const info = await stat(path).catch(error => { if (error.code !== 'ENOENT') throw error; return null; });
+      if (!info) continue;
+      if (!info.isFile()) throw new Error('A song file is not a regular file. No files were deleted.');
+      files.push({ path, size: info.size, contents: path === audio ? null : await readFile(path) });
+    }
+    let freedBytes = 0;
+    const removed = [];
+    try {
+      // Audio is last: an earlier error leaves it playable, a failed audio unlink restores metadata.
+      for (const file of files) {
+        await rm(file.path, { force: true });
+        removed.push(file);
+        freedBytes += file.size;
+      }
+    } catch (error) {
+      for (const file of removed) if (file.contents) await writeFile(file.path, file.contents);
+      throw error;
+    }
     this.#songs.delete(song.id);
-    await rm(audio, { force: true });
-    await rm(audio.replace(/\.wav$/, '.json'), { force: true });
+    await rmdir(dirname(audio)).catch(error => { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) console.warn('Could not remove an empty library folder:', error.message); });
+    return freedBytes;
   }
 
   /** The metadata file appears last, so a crash cannot list a partial song. */

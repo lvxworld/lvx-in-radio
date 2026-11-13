@@ -90,12 +90,9 @@ async function waitFor(predicate, timeout = 3000) {
 const intro = (f) => f.dj.snapshot().introduction ?? null;
 const armed = (f) => intro(f)?.state === 'armed';
 
-/** Plays up to three songs and returns the song number (2 or 3) on which an introduction was armed. */
+/** Plays up to three songs and returns the song number on which an introduction was armed. */
 async function armedBySongThree(f, options) {
-  await f.playNext(options);
-  await delay(50);
-  assert.ok(!armed(f), 'never a DJ on the first song after tuning');
-  for (const song of [2, 3]) {
+  for (const song of [1, 2, 3]) {
     await f.playNext(options);
     if (await waitFor(() => armed(f))) return song;
   }
@@ -124,11 +121,11 @@ for (const [label, options] of [
   ['feed songs without a duration', { durationSec: undefined }],
   ['feed songs with the client\'s progress reports', { durationSec: 150, play: { progress: [5, 10, 15, 20] } }],
 ]) {
-  test(`cadence 1-1 on LVX Live lux-lofi (${label}): an introduction is armed by song 2 or 3`, async (t) => {
+  test(`cadence 1-1 on LVX Live lux-lofi (${label}): an introduction is armed from the first song`, async (t) => {
     const f = await rig(t, options);
     await f.tune();
     const song = await armedBySongThree(f, options.play);
-    assert.ok(song <= 3);
+    assert.equal(song, 1, 'the first song after tuning already gets its DJ');
     const armedIntro = intro(f);
     assert.equal(armedIntro.djId ?? f.dj.snapshot().lastLine?.djId, 'ryan', 'the station pick speaks');
     assert.ok(f.engine.requests.length >= 1);
@@ -138,7 +135,7 @@ for (const [label, options] of [
 
 // fix2 root cause: News held the DJ off from :50 to :05 and while its ready card stayed unanswered.
 for (const minute of [2, 30]) {
-  test(`cadence 1-1 on LVX Live lux-lofi at 11:${String(minute).padStart(2, '0')} with News on and its card unanswered: an introduction by song 2 or 3`, async (t) => {
+  test(`cadence 1-1 on LVX Live lux-lofi at 11:${String(minute).padStart(2, '0')} with News on and its card unanswered: an introduction from the first song`, async (t) => {
     const news = await newsAfterBulletin(t, minute);
     assert.ok(news.desk.snapshot().due, 'the 11:00 ready card is up');
     const f = await rig(t, { newsUrgent: () => news.desk.isUrgent() });

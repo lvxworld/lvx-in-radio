@@ -29,6 +29,12 @@ export function stationDj(station) {
   return { dj: STYLE_DEFAULT_DJ[styleFor(station?.config)] ?? null, djChosen: false };
 }
 
+/** A listener station's chosen co-host: a DJ id, null for "talks alone", undefined for the automatic pick. */
+export function stationCoHostChoice(station) {
+  const choice = station?.coHost;
+  return choice && typeof choice === 'object' && 'id' in choice && (choice.id === null || DJ_IDS.includes(choice.id)) ? choice.id : undefined;
+}
+
 /** An LVX station's DJ from the choice map in dj-settings.json: djId | null (No DJ) | absent (default). */
 export function luxStationDj(station, choices = {}) {
   if (Object.hasOwn(choices, station?.id)) {

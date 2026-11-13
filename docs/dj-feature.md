@@ -65,6 +65,7 @@ Women: `serena`, `sohee` (Relax, owner 5/5), `vivian` (EDM, 5/5). Men: `ryan`, `
 `src/radio/dj/prompts/`, no prompt text in code:
 
 - `writer/system.md`, `writer/rules.md`: the script-writer instructions (grounding rules below).
+- `writer/duo.md`: the two-host break.
 - `writer/fallback-templates.json`: sentence templates with `{title}`, `{mood}`, `{bpm}`, `{genre}` slots, per style preset. Used when the LLM is unavailable (tier 2) or a line fails validation twice.
 - `djs/<id>.json`: id, display name, speaker, gender, language, best-for stations, character sentence.
 - `styles/<preset>.json`: TTS `instruct` text and writer tone for the preset.
@@ -81,6 +82,38 @@ Grounding rules (from the 36-sample test: the 4B invented details of the previou
 - Recent openers (last 6 lines) are passed as "do not start like these".
 - Validation after generation: length, title present exactly once, no markup, no tags. One retry, then a fallback template line. Everything is recorded in the line's `source` (`llm`/`template`).
 
+### Two hosts and the news (`dj-duo.js`)
+
+A break is written for two hosts: the station's DJ (host A) and a co-host of the other sex,
+the first one suited to the style (`coHostFor`). The writer returns 2–4 alternating turns as
+JSON, forced by a JSON schema that `llama-server` turns into a grammar. Code removes a host name
+before a line (it would be read aloud). `validateDuo` checks turns 4–30 words, 35–80 in all,
+the title once and only in the last turn, and no capitalised word inside a sentence that is not
+a host, the station, the title or a genre. Each turn is voiced by its own DJ and `joinTurns`
+makes one WAV with 0.3 s between voices, so caching, playback and ducking are unchanged.
+Two failed tries fall back to the single-DJ line (two tries), then to a template.
+The listener can choose the co-host in the DJ popover ("Talks with": the DJs of the other sex,
+or Alone). It is stored like the DJ choice: `station.coHost = { id }` in `stations.json`, and
+the `coHosts` map in `dj-settings.json` for LVX stations; `POST /api/dj/settings` takes
+`{ stationId, coHostId }` (an id, null for alone, 'default'). `DjDesk.coHost` resolves the pair
+for both the snapshot (`coHost`, `coHostChosen` on each station) and production; a choice left
+of the same sex by a new DJ falls back to the automatic co-host.
+
+While News is on, a break may mention one story from the newest bulletin
+(`NewsDesk.headlines()`, only if that bulletin is under 90 minutes old): at most once an hour,
+never the same story twice, English only, and only a story the news writer judged light
+(`serious: false` in the bulletin; a grim headline next to banter would jar). The host who
+does not hand over reads its headline word for word (`headlineLine`), just before the
+handoff. The writer never retells news: asked to, the 4B swapped who did what, and no check
+on names and numbers can see that. A break with news is cached under its own key, so a
+replay of the song never repeats old news.
+
+Measured on this Mac, an M5 Max (40 prompts, real model): 37/40 breaks valid on the first
+try, 39/40 after the retry, 1.65 s each. Five voice clips take about 10 s (cold), about a
+third of their length warm. A whole break with news took 20 s in the app, inside the 25 s
+warm estimate; watch `seconds` in `dj.log` if breaks on short LVX songs start ending as
+`not-enough-time`.
+
 ## Priority and concurrency (the important part)
 
 Order: **song > DJ > news.** The engine runs one job at a time and `RadioStation` owns holds.
@@ -88,7 +121,7 @@ Order: **song > DJ > news.** The engine runs one job at a time and `RadioStation
 - The News bulletin keeps its own window (10 min before the hour). A running news production is never cut; a waiting DJ job goes first, then news; if a news production would miss its deadline the DJ job is skipped, not the news.
 - DJ lines are prepared during song N for song N+1, only when N+1 is already `ready` (so title and metadata exist). Library replays count.
 - Lines are cached by (song id, DJ id, version); a replay reuses the clip, with an occasional rewrite.
-- Slot rule: a DJ speaks after 2, 3 or 4 songs, chosen at random with a station seed; never twice in a row; never on the first song after tuning.
+- Slot rule: a DJ speaks after 2, 3 or 4 songs, chosen at random with a station seed; never twice in a row. The count starts with the first song after tuning, so 1 to 1 introduces song 2 at the end of song 1 (a first song too short to prepare a break in is skipped by the runway check).
 
 ## RAM tiers (chosen right before each DJ job from free + inactive memory)
 
@@ -190,8 +223,8 @@ Implemented from `docs/dj-lux-spec.md` with the lead's decisions. The four LVX s
   at the end of the NEXT song and introduces the one after it: the introduction carries
   `fromTrackId` (the song on air while it waits) and `songId` (the song it talks over), and it
   survives the natural end of the song before. LVX sessions keep two songs ahead when the catalog
-  has them. A song of unknown length (0) gets no DJ. Cadence and "never on the first song after
-  tuning" are as for listener stations. Measured on this Mac: writer cold ~8 s, warm ~1 s; voice
+  has them. A song of unknown length (0) gets no DJ. The cadence is as for listener stations,
+  counting from the first song after tuning. Measured on this Mac: writer cold ~8 s, warm ~1 s; voice
   5.5–6 s from an idle engine, ~13 s after YuE2; a template line in 8.4–9.2 s end to end.
 - **Writer input:** station name, its description (the LVX quote or the Live description), genre
   mix and style; next title and one mood word from `prompts/lux-moods.json`, the manifest's

@@ -47,17 +47,20 @@ function summaryText(summary, language) {
 
 const greeting = (hour) => (hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
 
+/** One story as spoken text: its title, at most two summary sentences and the credit, all from the feed. */
+function storyText(story) {
+  const language = story.language === 'it' ? 'it' : 'en';
+  const title = closed(normalizeSpeech(story.title, language));
+  const summary = summaryText(story.summary, language);
+  const source = normalizeSpeech(story.source, language);
+  const credit = source ? (language === 'it' ? `Fonte: ${source}.` : `According to ${source}.`) : '';
+  return [title, summary, credit].filter(Boolean).join(' ');
+}
+
 /** The one place that turns stories into spoken text. Swap it to bring in a language model. */
 export function composeScript(stories, now = new Date()) {
   const parts = [{ id: 'intro', text: `${greeting(now.getHours())}. Here are the latest headlines.` }];
-  for (const story of stories) {
-    const language = story.language === 'it' ? 'it' : 'en';
-    const title = closed(normalizeSpeech(story.title, language));
-    const summary = summaryText(story.summary, language);
-    const source = normalizeSpeech(story.source, language);
-    const credit = source ? (language === 'it' ? `Fonte: ${source}.` : `According to ${source}.`) : '';
-    parts.push({ id: story.id, storyId: story.id, language, text: [title, summary, credit].filter(Boolean).join(' ') });
-  }
+  for (const story of stories) parts.push({ id: story.id, storyId: story.id, language: story.language === 'it' ? 'it' : 'en', text: storyText(story) });
   parts.push({ id: 'outro', text: 'Those are the latest headlines. Thank you for listening.' });
   return parts;
 }

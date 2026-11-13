@@ -113,14 +113,12 @@ test('a Lux session with a DJ on runs only voice jobs and stores nothing in the 
   assert.equal((await readdir(join(f.root, 'library')).catch(() => [])).filter((name) => !name.startsWith('.')).length, 0);
 });
 
-test('1 to 1 on Lux: no DJ on the first song after tuning, a slot from the second song', async (t) => {
+test('1 to 1 on Lux: the first song after tuning already gets its DJ', async (t) => {
   const f = await rig(t, { warm: true });
   await f.tune('lux-relax');
-  await f.playNext();
-  await delay(30);
-  assert.equal(f.engine.requests.length, 0);
-  await f.playNext();
-  await waitFor(() => armed(f), 'second-song slot');
+  const first = await f.playNext();
+  await waitFor(() => armed(f), 'first-song slot');
+  assert.equal(f.dj.snapshot().introduction.songId, first.id);
   assert.equal(f.engine.requests.length, 1);
 });
 
@@ -199,19 +197,18 @@ test('a Lux DJ job holds the engine: no idle unload during it, unload after rele
 test('short Lux songs with a cold engine aim at the transition after the next song', async (t) => {
   const f = await rig(t, { warm: false });
   await f.tune('lux-edm');
-  await f.playNext();
-  const second = await f.playNext();
+  const first = await f.playNext();
   await waitFor(() => armed(f), 'ahead slot');
   const intro = f.dj.snapshot().introduction;
-  const [third, fourth] = (() => { const { tracks } = f.radio.snapshot(); const at = tracks.findIndex((track) => track.id === second.id); return tracks.slice(at + 1, at + 3); })();
-  assert.equal(intro.fromTrackId, second.id);
-  assert.equal(intro.songId, third.id, 'speaks over the end of the next song');
-  assert.equal(intro.nextSongId, fourth.id, 'and introduces the one after it');
-  assert.equal(f.dj.snapshot().lastLine.songId, fourth.id);
-  assert.equal(clipToArm({ dj: f.dj.snapshot(), stationIds: ['lux-edm'], currentSongId: second.id, nextSongId: third.id }), null, 'not over the song on air now');
+  const [second, third] = (() => { const { tracks } = f.radio.snapshot(); const at = tracks.findIndex((track) => track.id === first.id); return tracks.slice(at + 1, at + 3); })();
+  assert.equal(intro.fromTrackId, first.id);
+  assert.equal(intro.songId, second.id, 'speaks over the end of the next song');
+  assert.equal(intro.nextSongId, third.id, 'and introduces the one after it');
+  assert.equal(f.dj.snapshot().lastLine.songId, third.id);
+  assert.equal(clipToArm({ dj: f.dj.snapshot(), stationIds: ['lux-edm'], currentSongId: first.id, nextSongId: second.id }), null, 'not over the song on air now');
   await f.playNext();
   assert.equal(state(f), 'armed', 'kept across the natural song change');
-  assert.ok(clipToArm({ dj: f.dj.snapshot(), stationIds: ['lux-edm'], currentSongId: third.id, nextSongId: fourth.id }));
+  assert.ok(clipToArm({ dj: f.dj.snapshot(), stationIds: ['lux-edm'], currentSongId: second.id, nextSongId: third.id }));
 });
 
 test('with a warm engine the same Lux songs get a direct introduction of the next song', async (t) => {
@@ -264,8 +261,11 @@ async function luxDesk(t, { warm = false, memory = 11 * GiB } = {}) {
   let session = 0;
   const lux = (current, next, after, extra = {}) => ({ stationId: 'lux-edm', stationName: 'LVX EDM', stationDescription: 'Night drive', lux: true, live: false, playing: true, busy: false, djId: 'vivian', playbackSessionId: `s${session}`, current, next, after, config: { mix: { EDM: 100 }, energy: 80, bpm: 126, dark: 40, mood: '' }, runwaySec: current.durationSec, songEstimateSec: 0, playbackTrackId: current.id, ...extra });
   const consider = (context) => { station.context = context; dj.consider(context); };
-  /** Tunes in on `warmup`, then makes the second song (`context`) due. */
-  const slot = (context) => { session += 1; consider({ ...context, playbackSessionId: `s${session}`, current: track(`warmup-${session}`), playbackTrackId: `warmup-${session}` }); consider({ ...context, playbackSessionId: `s${session}` }); };
+  /**
+   * Tunes in (a new playback session) on `context`: with 1-1 its first song is already due. The
+   * session opens paused, so an introduction armed by an earlier round is cleared, not inherited.
+   */
+  const slot = (context) => { session += 1; consider({ ...context, playbackSessionId: `s${session}`, playing: false }); consider({ ...context, playbackSessionId: `s${session}` }); };
   return { dj, station, engine, track, lux, consider, slot };
 }
 

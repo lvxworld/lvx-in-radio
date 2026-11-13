@@ -324,6 +324,8 @@ export class DjTalkOver {
 
   start() {
     if (!this.clip) return;
+    // On air wins: a sample still playing when the intro is due stops, so the two never share the chain.
+    this.stopPreview(0);
     if (this.phase !== 'ducking') this.duck();
     const el = this.voice = this.createAudio();
     el.preload = 'auto';
@@ -346,17 +348,41 @@ export class DjTalkOver {
   }
 
   /**
-   * Plays one clip right now through the same chain, for the audition in Settings. The music (if
-   * any) ducks under it exactly as on air. Replaces anything speaking.
+   * Plays one clip right now through the same voice chain, for an audition. The music (if any)
+   * ducks under it as on air. It has its own element, apart from the on-air plan: arming the next
+   * intro, a tick or a news cancel never cuts a sample, and a sample never erases an armed intro.
+   * A new sample replaces the previous one; a sample over an on-air voice stops that voice.
    */
   preview({ clip, preset }) {
-    this.cancel('rearm');
-    this.plan = null;
-    this.clip = this.previewClip = clip;
+    // A sample over an on-air voice stops it at once (no fade: the sample is about to raise the shared output).
+    if (this.phase === 'speaking') { this.disposeVoice(0); this.phase = 'skipped'; this.note('cancel', 'preview'); }
+    this.stopPreview(0);
     if (preset) this.setPreset(preset);
-    this.phase = 'idle';
-    this.start();
+    const el = this.previewVoice = this.createAudio();
+    el.preload = 'auto';
+    el.src = clip.url;
+    try { this.previewSource = this.ctx.createMediaElementSource(el); this.previewSource.connect(this.voiceIn); } catch { this.previewSource = null; }
+    const now = this.ctx.currentTime;
+    this.voiceOut.gain.cancelScheduledValues(now);
+    this.voiceOut.gain.setValueAtTime(1, now);
+    this.musicIn.gain.cancelScheduledValues(now);
+    this.musicIn.gain.setTargetAtTime(dbToGain(this.preset.duckDb), now, timeConstant(this.options.duckAttackSec));
+    const problem = (detail) => { if (this.previewVoice !== el) return; this.stopPreview(0); this.onProblem?.(detail); };
+    el.onended = () => { if (this.previewVoice === el) this.stopPreview(this.options.tailSec * 1000); };
+    el.onerror = () => problem('error');
+    Promise.resolve(el.play()).catch(() => problem('blocked'));
   }
+
+  /** Ends the sample; the music comes back unless an on-air intro is ducking it. */
+  stopPreview(afterMs) {
+    const el = this.previewVoice, source = this.previewSource;
+    if (!el) return;
+    this.previewVoice = null; this.previewSource = null;
+    if (this.phase !== 'ducking' && this.phase !== 'speaking') this.release(afterMs / 1000);
+    this.dispose(el, source, afterMs);
+  }
+
+  get previewing() { return Boolean(this.previewVoice); }
 
   /** The listener paused: the voice waits with the music. */
   pause() { if (this.phase === 'speaking') this.voice?.pause(); }
@@ -371,14 +397,16 @@ export class DjTalkOver {
   /** Skip, station change, the song changing under us: stop the voice with a short fade and let the music back. */
   cancel(reason = 'cancel') {
     const wasActive = this.phase === 'speaking' || this.phase === 'ducking';
-    if (this.phase === 'speaking' && this.voice) {
+    // The voice output is shared with a sample: with one playing, the on-air voice stops at once instead of fading both.
+    if (this.phase === 'speaking' && this.voice && this.previewVoice) this.disposeVoice(0);
+    else if (this.phase === 'speaking' && this.voice) {
       const now = this.ctx.currentTime;
       this.voiceOut.gain.cancelScheduledValues(now);
       this.voiceOut.gain.setTargetAtTime(0, now, timeConstant(this.options.cancelFadeSec));
       this.disposeVoice(this.options.cancelFadeSec * 1000 + 60);
     }
     // A new song starts at full level even if the last release is still on its way.
-    if (wasActive || reason === 'song-change') this.release();
+    if ((wasActive || reason === 'song-change') && !this.previewVoice) this.release();
     if (this.phase !== 'idle') this.phase = reason === 'rearm' ? 'idle' : 'skipped';
     if (wasActive) this.note('cancel', reason);
   }
@@ -386,6 +414,10 @@ export class DjTalkOver {
   disposeVoice(afterMs) {
     const el = this.voice, source = this.source;
     this.voice = null; this.source = null;
+    this.dispose(el, source, afterMs);
+  }
+
+  dispose(el, source, afterMs) {
     const dispose = () => {
       try { el?.pause(); } catch { /* already gone */ }
       if (el) { el.onended = null; el.onerror = null; el.removeAttribute?.('src'); }
@@ -395,14 +427,13 @@ export class DjTalkOver {
   }
 
   note(type, detail) {
-    // An audition that cannot play (blocked, or the clip failed to load) says so; scheduled intros stay quiet.
-    if (type === 'cancel' && (detail === 'error' || detail === 'blocked') && this.clip && this.clip === this.previewClip) this.onProblem?.(detail);
     this.events.push({ type, detail, at: this.ctx.currentTime }); if (this.events.length > 20) this.events.shift(); }
 
   get speaking() { return this.phase === 'speaking'; }
 
   destroy() {
     this.cancel('destroy');
+    this.stopPreview(0);
     this.disposeVoice(0);
     for (const node of [this.musicIn, this.voiceIn, this.highpass, this.lowShelf, this.presence, this.highShelf, this.compressor, this.makeup, this.voiceOut, this.dry, this.wet, this.convolver]) { try { node.disconnect(); } catch { /* ignore */ } }
   }

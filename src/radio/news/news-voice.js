@@ -80,10 +80,12 @@ export async function renderParts(parts, { synthesize, cacheDir, model, speaker,
   const rendered = [];
   for (const part of parts) {
     const language = part.language === 'it' ? 'it' : 'en', partStyle = styleOf(style, language);
-    const path = join(cacheDir, `${voiceKey({ text: part.text, model, speaker, style: partStyle, params, language })}.wav`);
+    // A part may name its own host (the podcast's two voices); otherwise the bulletin's speaker reads it.
+    const partSpeaker = part.speaker ?? speaker;
+    const path = join(cacheDir, `${voiceKey({ text: part.text, model, speaker: partSpeaker, style: partStyle, params, language })}.wav`);
     let take = await cached(path);
     if (!take) {
-      take = await synthesizeChecked(synthesize, part.text, log, { language, style: partStyle });
+      take = await synthesizeChecked(synthesize, part.text, log, { language, style: partStyle, speaker: partSpeaker });
       await writeFile(`${path}.tmp`, take.wav);
       await rename(`${path}.tmp`, path);
     }
@@ -102,7 +104,7 @@ export function createSynthesizer(engine, { speaker = DEFAULT_SPEAKER, style = D
     // Retries must not relaunch an engine that the app has just stopped for quitting.
     if (shouldStop()) throw new Error('The radio is shutting down.');
     const language = context.language === 'it' ? 'Italian' : 'English';
-    const options = { speaker, instruction: context.style ?? styleOf(style, context.language ?? 'en'), language, ...params };
+    const options = { speaker: context.speaker ?? speaker, instruction: context.style ?? styleOf(style, context.language ?? 'en'), language, ...params };
     const result = await engine.run({ text, options }, { model: VOICE_MODEL_ID });
     if (!result?.audio) throw new Error('The voice engine returned no audio');
     return Buffer.from(result.audio, 'base64');

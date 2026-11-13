@@ -214,6 +214,10 @@ export function createApp({ station, uiDir, readGpu = async () => null, setup, l
       await station.setFeedback(trackId, type);
       sendJson(response, 200, { ok: true });
     },
+    'POST /api/songs/delete': async (request, response) => {
+      const { trackId } = await readJson(request);
+      sendJson(response, 200, await station.deleteSong(trackId));
+    },
     'POST /api/generation': async (request, response) => {
       const { enabled } = await readJson(request);
       await station.setGenerationEnabled(enabled);

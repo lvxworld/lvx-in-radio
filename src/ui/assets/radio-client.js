@@ -58,6 +58,8 @@ window.LvxRadio = {
     return this.post('/api/feedback', { trackId, type });
   },
 
+  deleteSong(trackId) { return this.post('/api/songs/delete', { trackId }); },
+
   setGeneration(enabled) {
     return this.post('/api/generation', { enabled });
   },

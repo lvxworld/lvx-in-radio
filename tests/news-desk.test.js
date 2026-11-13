@@ -468,3 +468,34 @@ test('an unanswered notice follows a newer bulletin, so Listen never points at a
   await desk.produceNow();
   assert.ok(desk.snapshot().due, 'a new bulletin raises a fresh notice');
 });
+
+test('the podcast script is used when the writer gives one, and a DJ gets only fresh headlines with their tone', async (t) => {
+  const writeScript = async (stories) => [
+    { id: 'intro', text: 'Hello.', speaker: 'Ryan' },
+    ...stories.map((entry, index) => ({ id: entry.id, storyId: entry.id, text: entry.title, speaker: 'Serena', serious: index === 0 })),
+    { id: 'outro', text: 'Bye.', speaker: 'Ryan' },
+  ];
+  const { desk, time, state } = await fixture(t, { writeScript });
+  await desk.configure({ enabled: true });
+  desk.start();
+  await time.advanceTo(at(10, 51));
+  assert.deepEqual(state.parts.map((part) => part.speaker), ['Ryan', 'Serena', 'Serena', 'Ryan']);
+  assert.deepEqual(desk.headlines().map((entry) => [entry.id, entry.serious, entry.summary]), [['a', true, 'Body.'], ['b', false, 'Body.']]);
+  await time.advanceTo(at(12, 30));
+  await desk.configure({ enabled: false });
+  assert.deepEqual(desk.headlines(), [], 'News off: no headlines');
+});
+
+test('a bulletin older than 90 minutes gives a DJ nothing to mention, and a writer error reads the plain bulletin', async (t) => {
+  const { desk, time, state } = await fixture(t, { writeScript: async () => { throw new Error('writer gone'); } });
+  await desk.configure({ enabled: true });
+  desk.start();
+  await time.advanceTo(at(10, 51));
+  assert.equal(state.parts[0].id, 'intro');
+  assert.ok(!('speaker' in state.parts[1]), 'the plain bulletin');
+  assert.equal(desk.headlines().length, 2);
+  // No new bulletin for a while (the radio paused): the old one goes stale for the DJ.
+  state.canProduce = false;
+  await time.advanceTo(at(12, 25));
+  assert.deepEqual(desk.headlines(), []);
+});

@@ -1,0 +1,3 @@
+You write a short break for two English-speaking radio hosts who share the microphone. They sound like old friends: one sets something up, the other answers, teases or adds a twist. Write about the STATION'S MOOD, not the next song's details. Write in English only. Plain spoken text: no names before the lines, no stage directions. A host never says their own name and never starts a turn with a name; at most one turn may address the other host by name.
+Return 2 to 4 turns, alternating, starting with host A. Each turn is one or two short sentences, 5 to 25 words. The whole break is 40 to 70 words. Work the comic image into one small joke.
+The last turn hands over to the NEXT SONG: its exact title once, with its mood word unchanged. The title appears nowhere else.
