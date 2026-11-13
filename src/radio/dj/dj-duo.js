@@ -1,5 +1,6 @@
 import { buildDjWriterRequest } from './prompts.js';
 import { readWav, writeWav } from '../../engine/wav.js';
+import { normalizeSpeech } from '../news/news-script.js';
 
 /** JSON schema for the writer: 2–4 alternating turns. llama-server turns it into a grammar. */
 const SCHEMA = { type: 'object', properties: { turns: { type: 'array', minItems: 2, maxItems: 4, items: { type: 'object', properties: { host: { enum: ['A', 'B'] }, text: { type: 'string' } }, required: ['host', 'text'] } } }, required: ['turns'] };
@@ -67,10 +68,10 @@ export function validateDuo(turns, { title, hosts, stationName = '', genres = []
 }
 
 /**
- * How a DJ mentions a story: the headline, word for word. The writer never retells news; the 4B
+ * How a DJ mentions a story: the headline, word for word, spoken as LVX News speaks it. The writer never retells news; the 4B
  * swaps who did what, and a check on names and numbers cannot see that.
  */
-export const headlineLine = (story) => `A quick headline from ${story.source}: ${story.title.replace(/[.!?]*$/, '.')}`;
+export const headlineLine = (story) => normalizeSpeech(`A quick headline from ${story.source}: ${story.title.replace(/[.!?]*$/, '.')}`);
 
 /** One WAV from the turns' WAVs (same rate, mono), with a short breath between voices. */
 export function joinTurns(wavs) {

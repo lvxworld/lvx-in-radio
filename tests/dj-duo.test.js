@@ -53,6 +53,7 @@ test('a two-host break is parsed without spoken name labels and checked', () => 
 
 test('a DJ mentions news by its headline, and titles match as whole words', () => {
   assert.equal(headlineLine(story), 'A quick headline from BBC News: Microsoft outage hits airlines.');
+  assert.equal(headlineLine({ ...story, title: 'U.S. inflation hits 3% – again' }), 'A quick headline from BBC News: United States inflation hits 3 percent, again.');
   assert.equal(occurrences('No brain, no train, just raining, then Rain.', 'Rain'), 1);
   assert.equal(occurrences(`Here comes ${title}, softly.`, title), 1);
   assert.equal(validateDuo([{ host: 0, text: 'Is your favourite DJ duo keeping the evening slow and easy tonight?' }, ...parseDuo(JSON.stringify({ turns: turns.slice(1) }), hosts).map((turn, index) => ({ ...turn, host: (index + 1) % 2 }))], check), true, 'DJ is a known capital');
