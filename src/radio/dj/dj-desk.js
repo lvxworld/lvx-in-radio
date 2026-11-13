@@ -549,6 +549,7 @@ export class DjDesk extends EventEmitter {
     const active = this.#active;
     active.controller = new AbortController();
     const finish = () => { if (wasReleased) return; wasReleased = true; clearTimeout(active.deadline); if (this.#active === active) this.#active = null; release(); };
+    active.release = finish;
     try {
       const availability = await this.settings();
       if (!availability.voice.ready) throw new Error('The shared News voice is not ready.');
@@ -574,7 +575,11 @@ export class DjDesk extends EventEmitter {
         } else if (!line) line = await this.#lineText(context, style, 2, undefined, hosts);
         if (active.controller.signal.aborted) throw active.controller.signal.reason ?? new Error('DJ line cancelled');
         const clips = [];
-        for (const turn of line.turns) clips.push((await this.#speak(turn.text, this.#prompts.djs.find((entry) => entry.id === turn.djId), style)).wav);
+        for (const turn of line.turns) {
+          active.controller.signal.throwIfAborted();
+          clips.push((await this.#speak(turn.text, this.#prompts.djs.find((entry) => entry.id === turn.djId), style)).wav);
+        }
+        active.controller.signal.throwIfAborted();
         const wav = clips.length === 1 ? clips[0] : joinTurns(clips);
         // A break with news is kept apart: a replay of the song must not repeat old news.
         if (line.story) { this.#newsAt = Date.now(); this.#mentioned.add(line.story.id); key = createHash('sha256').update(JSON.stringify([key, line.story.id])).digest('hex'); }

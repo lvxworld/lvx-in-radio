@@ -68,7 +68,7 @@ test('turns become one WAV with a short gap between voices', () => {
 
 const freePort = () => new Promise((resolve, reject) => { const server = createServer(); server.once('error', reject); server.listen(0, '127.0.0.1', () => { const { port } = server.address(); server.close(() => resolve(port)); }); });
 
-async function desk(t, newsAnswer, coHostChoice, headlines = [story]) {
+async function desk(t, newsAnswer, coHostChoice, headlines = [story], { cancelAfterFirst = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'lvx-dj-duo-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   // A writer that answers the two-host JSON when asked for it, and the news sentence for the news prompt.
@@ -89,9 +89,10 @@ http.createServer(async (req, res) => {
     next: { id: 'next-a', title, status: 'ready', generation: { mix: { Pop: 100 }, mood: 'calm and reflective' } },
     config: { mix: { Pop: 100 }, mood: 'calm', energy: 22, seed: 7 }, coHostChoice, runwaySec: 300, songEstimateSec: 90, playbackTrackId: 'current-a',
   };
-  const station = { context, djContext: () => context, snapshot: () => ({ stationId: 'station-a', tracks: [] }), requestHold: (grant) => { queueMicrotask(() => grant(() => {})); return () => {}; } };
+  let releases = 0;
+  const station = { context, djContext: () => context, snapshot: () => ({ stationId: 'station-a', tracks: [] }), requestHold: (grant) => { queueMicrotask(() => grant(() => { releases += 1; })); return () => {}; } };
   const wav = writeWav({ sampleRate: 24000, samples: [Float32Array.from({ length: 24000 }, (_, i) => Math.sin(i / 13) * 0.1)] });
-  const engine = { requests: [], isWarm: () => false, run: async function (request) { this.requests.push(request); return { audio: wav.toString('base64') }; }, abort: async () => {}, stop: async () => {} };
+  const engine = { requests: [], isWarm: () => false, run: async function (request) { this.requests.push(request); if (cancelAfterFirst && this.requests.length === 1) await dj.cancel('playback paused'); return { audio: wav.toString('base64') }; }, abort: async () => {}, stop: async () => {} };
   const ready = { snapshot: async () => ({ ready: true, status: 'ready', directory: join(root, 'model') }) };
   await mkdir(join(root, 'no-previews'));
   const dj = new DjDesk({ dataDir: root, station, engine, modelSetup: ready, voiceSetup: ready, freeMemory: async () => 20 * GiB, headlines: () => headlines, previewsDir: join(root, 'no-previews') });
@@ -100,9 +101,17 @@ http.createServer(async (req, res) => {
   t.after(() => dj.close());
   dj.consider({ ...context, playbackTrackId: 'lead-in', current: { ...context.current, id: 'lead-in' } });
   dj.consider(context);
-  for (const until = Date.now() + 5000; dj.snapshot().introduction?.state !== 'armed'; await delay(10)) if (Date.now() > until) assert.fail(`no break: ${JSON.stringify(dj.snapshot().last)}`);
-  return { dj, engine };
+  for (const until = Date.now() + 5000; cancelAfterFirst ? !dj.snapshot().last : dj.snapshot().introduction?.state !== 'armed'; await delay(10)) if (Date.now() > until) assert.fail(`no break: ${JSON.stringify(dj.snapshot().last)}`);
+  return { dj, engine, releases: () => releases };
 }
+
+test('cancellation as a turn completes starts no later voices and releases the engine once', async t => {
+  const { dj, engine, releases } = await desk(t, 'unused', undefined, [story], { cancelAfterFirst: true });
+  assert.equal(engine.requests.length, 1);
+  assert.equal(dj.snapshot().last.error, 'playback paused');
+  assert.equal(dj.snapshot().lastLine, null);
+  assert.equal(releases(), 1);
+});
 
 test('a break is two voices, with the news read just before the handoff', async (t) => {
   const { dj, engine } = await desk(t, 'unused');
