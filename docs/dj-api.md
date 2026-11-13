@@ -206,8 +206,9 @@ target; `remainingSongs` is the number of further boundaries before it is due.
 `songId` is the next ready song being introduced, or null until one is ready.
 `lastLine` is `null` or
 `{ "id": "...", "stationId": "...", "songId": "...", "djId": "...",
-"style": "relax", "text": "...", "source": "llm|template", "audioId": "...",
-"durationSec": 8.2, "createdAt": "ISO-8601" }`. `songId` is the song being
+"style": "relax", "text": "...", "turns": [{ "djId": "...", "text": "..." }],
+"source": "llm|template", "audioId": "...", "durationSec": 8.2, "createdAt": "ISO-8601" }`.
+`turns` lists who says what, in order (two hosts, or one); `text` is all of it. `songId` is the song being
 introduced; `stationId` is the station playing the preceding song that the clip
 overlays. The clip plays over the tail of the preceding song, not the start of
 the introduced song. `tier` is `null | 1 | 2 | 3 | 4` (LLM+voice,

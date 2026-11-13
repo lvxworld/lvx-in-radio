@@ -3,14 +3,17 @@ import { execFileSync } from 'node:child_process';
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { readWav } from '../../engine/wav.js';
+import { readWav, wavDurationSeconds } from '../../engine/wav.js';
 import { buildDjWriterRequest, djTitle, loadDjPrompts, nextSongMoodWord } from '../dj/prompts.js';
 import { DjLlm } from './dj-llm.js';
+import { buildDuoRequest, buildNewsRequest, coHostFor, headlineLine, joinTurns, parseDuo, validateDuo, validateNewsLine } from './dj-duo.js';
 import djLlmManifest from '../../engine/dj-llm-manifest.json' with { type: 'json' };
 import { DJ_IDS, luxStationDj, styleFor } from './dj-style.js';
 import { PREVIEW_TEXT, VOICE_VERSION, loadBundledPreviews } from './dj-preview.js';
 
-const LINE_VERSION = 'dj-mood-first-v2';
+const LINE_VERSION = 'dj-duo-v1';
+// A break mentions at most one news story per hour, from the newest bulletin, never the same one twice.
+const NEWS_EVERY_MS = 60 * 60_000;
 const MARGIN_SEC = 30;
 const DJ_COLD_ESTIMATE_SEC = 60;
 const DJ_WARM_ESTIMATE_SEC = 25;
@@ -113,9 +116,10 @@ export class DjDesk extends EventEmitter {
   #lastLine = null; #last = null; #nextSlot = null; #preview = null; #tier = null; #active = null; #introduction = null; #introductionTimer = null; #modelPoll = null;
   #states = new Map(); #openers = []; #writerStructures = []; #writerHumour = []; #closed = false; #ready = false; #missing = ['llm', 'voice'];
 
-  #slotEverySong; #bundledPreviews = new Map(); #previewsDir; #luxChoices = {};
-  constructor({ dataDir, cacheDir = join(dataDir, 'dj'), station, engine, modelSetup, voiceSetup, freeMemory = readMacMemory, newsUrgent = () => false, promptFolders, slotEverySong = false, isWarm, llmCommand = null, previewsDir } = {}) {
+  #slotEverySong; #bundledPreviews = new Map(); #previewsDir; #luxChoices = {}; #headlines; #newsAt = 0; #mentioned = new Set();
+  constructor({ dataDir, cacheDir = join(dataDir, 'dj'), station, engine, modelSetup, voiceSetup, freeMemory = readMacMemory, newsUrgent = () => false, headlines = () => [], promptFolders, slotEverySong = false, isWarm, llmCommand = null, previewsDir } = {}) {
     super();
+    this.#headlines = headlines;
     this.#previewsDir = previewsDir;
     this.#llmCommand = llmCommand;
     this.#settings = { enabled: false, minSongs: 2, maxSongs: 4, runtime: resolveDjRuntime({ bundledCommand: llmCommand }) }; this.#dataDir = dataDir; this.#cacheDir = cacheDir; this.#settingsFile = join(dataDir, 'dj-settings.json');
@@ -379,8 +383,10 @@ export class DjDesk extends EventEmitter {
     return 4;
   }
 
-  async #writerLine(context, style, signal, retry = false) {
-    const request = buildDjWriterRequest(this.#prompts, { ...context, style, recentOpeners: this.#openers, recentStructures: this.#writerStructures, recentHumour: this.#writerHumour, retry });
+  /** One writer call: a single-DJ line, or with `hosts` a two-host break as JSON. */
+  async #writerLine(context, style, signal, retry = false, hosts = null) {
+    const input = { ...context, style, recentOpeners: this.#openers, recentStructures: this.#writerStructures, recentHumour: this.#writerHumour, retry };
+    const request = hosts ? buildDuoRequest(this.#prompts, input, hosts) : buildDjWriterRequest(this.#prompts, input);
     this.#writerHumour.push(request.hints.humour);
     this.#writerHumour = this.#writerHumour.slice(-6);
     this.#writerStructures.push(request.hints.structure);
@@ -388,16 +394,47 @@ export class DjDesk extends EventEmitter {
     return this.#llm.complete({ ...request, signal });
   }
 
-  async #lineText(raw, style, tier, signal) {
+  /** A news story the next break may mention, or null. */
+  #story() {
+    if (Date.now() - this.#newsAt < NEWS_EVERY_MS) return null;
+    return this.#headlines().find((story) => story.language !== 'it' && story.title && !this.#mentioned.has(story.id)) ?? null;
+  }
+
+  /** The writer retells the story in one checked sentence; if it cannot, the headline is read as it is. */
+  async #newsLine(story, signal) {
+    for (const retry of [false, true]) {
+      const line = await this.#llm.complete({ ...buildNewsRequest(this.#prompts, story, { retry }), signal });
+      if (validateNewsLine(line, story)) return line.trim();
+    }
+    return headlineLine(story);
+  }
+
+  /**
+   * The break as turns [{ djId, text }]. With the writer: a two-host break (two tries, plus the
+   * story before the handoff), then a single line (two tries); otherwise a style template.
+   */
+  async #lineText(raw, style, tier, signal, hosts, story = null) {
     const title = djTitle(raw.next?.title);
     if (!title) throw new Error('The next song has no title the DJ can say');
     const context = { ...raw, next: { ...raw.next, title } };
+    const alone = (text, source, used = tier) => ({ turns: [{ djId: hosts[0].id, text }], source, tier: used });
     if (tier === 1) {
       try {
-        let line = await this.#writerLine(context, style, signal);
-        if (validateDjLine(line, context.next.title)) return { text: line.trim(), source: 'llm', tier };
-        line = await this.#writerLine(context, style, signal, true);
-        if (validateDjLine(line, context.next.title)) return { text: line.trim(), source: 'llm', tier };
+        if (hosts[1]) {
+          const check = { title, hosts, stationName: context.stationName, genres: Object.keys(context.config?.mix ?? {}) };
+          for (const retry of [false, true]) {
+            const turns = parseDuo(await this.#writerLine(context, style, signal, retry, hosts), hosts);
+            if (!validateDuo(turns, check)) continue;
+            const spoken = turns.map((turn) => ({ djId: hosts[turn.host].id, text: turn.text }));
+            // The host who does not hand over reads the story, just before the handoff.
+            if (story) spoken.splice(-1, 0, { djId: hosts[1 - turns.at(-1).host].id, text: await this.#newsLine(story, signal) });
+            return { turns: spoken, source: 'llm', tier, story };
+          }
+        }
+        for (const retry of [false, true]) {
+          const line = await this.#writerLine(context, style, signal, retry);
+          if (validateDjLine(line, context.next.title)) return alone(line.trim(), 'llm');
+        }
       } catch (error) { if (signal?.aborted) throw error; console.warn('DJ writer unavailable; using template:', error.message); }
       await this.#llm?.stop();
     }
@@ -406,7 +443,7 @@ export class DjDesk extends EventEmitter {
     const offset = candidates.length ? randomInt(candidates.length) : 0;
     for (const template of [...candidates.slice(offset), ...candidates.slice(0, offset)]) {
       const text = renderFallback(template, { ...info, title: context.next.title });
-      if (validateDjLine(text, context.next.title)) return { text, source: 'template', tier: 2 };
+      if (validateDjLine(text, context.next.title)) return alone(text, 'template', 2);
     }
     throw new Error(`No valid ${style.id} or generic DJ fallback template is configured`);
   }
@@ -471,6 +508,7 @@ export class DjDesk extends EventEmitter {
     const startedAt = performance.now(); let outcome = null;
     const dj = this.#prompts.djs.find((entry) => entry.id === context.djId);
     const styleId = context.styleId ?? styleFor(context.config), style = this.#prompts.styles.find((entry) => entry.id === styleId) ?? this.#prompts.styles.find((entry) => entry.id === 'generic');
+    const hosts = [dj, coHostFor(this.#prompts.djs, dj, styleId)];
     let key = context.cacheKey ?? createHash('sha256').update(JSON.stringify([context.next.id, dj.id, LINE_VERSION, VOICE_VERSION, styleId])).digest('hex');
     let wasReleased = false;
     const active = this.#active;
@@ -485,7 +523,7 @@ export class DjDesk extends EventEmitter {
       let line;
       if (!cached) {
         const tier = mode === 'preview' ? 2 : await this.#tierChoice();
-        if (mode === 'preview') line = { text: PREVIEW_TEXT, source: 'template', tier: 2 };
+        if (mode === 'preview') line = { turns: [{ djId: dj.id, text: PREVIEW_TEXT }], source: 'template', tier: 2 };
         if (tier === 4) {
           outcome = { tier: 4, source: 'silent', status: 'refused', reason: 'low-memory' };
           this.#tier = 4; state.offered = null;
@@ -498,19 +536,23 @@ export class DjDesk extends EventEmitter {
           if (this.#llm && this.#llmModelDir !== model.directory) { await this.#llm.close(); this.#llm = null; }
           this.#llm ??= new DjLlm({ ...this.#settings.runtime, modelPath: join(model.directory, WRITER_MODEL_FILE), recordPath: join(this.#dataDir, 'dj-llm-process.json'), log: (entry) => console.log('[dj-llm]', entry) });
           this.#llmModelDir = model.directory;
-          line = await this.#lineText(context, style, tier, active.controller.signal);
+          line = await this.#lineText(context, style, tier, active.controller.signal, hosts, mode === 'slot' ? this.#story() : null);
           const after = await this.#freeMemory();
           if ((typeof after === 'number' ? after : after?.availableBytes ?? 0) < 10 * 1024 ** 3) await this.#llm.stop();
-        } else if (!line) line = await this.#lineText(context, style, 2);
+        } else if (!line) line = await this.#lineText(context, style, 2, undefined, hosts);
         if (active.controller.signal.aborted) throw active.controller.signal.reason ?? new Error('DJ line cancelled');
-        const audio = await this.#speak(line.text, dj, style);
-        cached = { ...audio, text: line.text, source: line.source, style: styleId, djId: dj.id, songId: context.next.id, stationId: context.stationId, tier: line.tier, ...(context.lux ? { uses: 1 } : {}) };
-        await this.#store(key, cached, audio.wav);
+        const clips = [];
+        for (const turn of line.turns) clips.push((await this.#speak(turn.text, this.#prompts.djs.find((entry) => entry.id === turn.djId), style)).wav);
+        const wav = clips.length === 1 ? clips[0] : joinTurns(clips);
+        // A break with news is kept apart: a replay of the song must not repeat old news.
+        if (line.story) { this.#newsAt = Date.now(); this.#mentioned.add(line.story.id); key = createHash('sha256').update(JSON.stringify([key, line.story.id])).digest('hex'); }
+        cached = { wav, durationSec: wavDurationSeconds(wav), text: line.turns.map((turn) => turn.text).join(' '), turns: line.turns, ...(line.story ? { newsId: line.story.id } : {}), source: line.source, style: styleId, djId: dj.id, songId: context.next.id, stationId: context.stationId, tier: line.tier, ...(context.lux ? { uses: 1 } : {}) };
+        await this.#store(key, cached, wav);
       }
       active.controller.signal.throwIfAborted();
       outcome = { tier: cached.tier ?? this.#tier, source: cached.source, status: 'ready', durationSec: cached.durationSec };
       if (mode === 'slot') {
-        this.#lastLine = { id: key, stationId: context.stationId, songId: context.next.id, djId: dj.id, style: styleId, text: cached.text, source: cached.source, audioId: key, durationSec: cached.durationSec, createdAt: cached.cachedAt ?? new Date().toISOString() };
+        this.#lastLine = { id: key, stationId: context.stationId, songId: context.next.id, djId: dj.id, style: styleId, text: cached.text, ...(cached.turns ? { turns: cached.turns } : {}), source: cached.source, audioId: key, durationSec: cached.durationSec, createdAt: cached.cachedAt ?? new Date().toISOString() };
         this.#openers.push(cached.text.split(/[.!?]/)[0]); this.#openers = this.#openers.slice(-6);
         state.fresh = false; state.songsSince = 0; state.target = this.#slotTarget(randomInt(1_000_000)); state.lastDjId = dj.id; state.offered = null;
         this.#tier = cached.tier ?? this.#tier;

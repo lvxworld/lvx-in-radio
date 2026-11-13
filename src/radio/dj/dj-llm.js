@@ -72,13 +72,13 @@ export class DjLlm {
     })().finally(() => { this.#starting = null; });
     return this.#starting;
   }
-  async complete({ system, prompt, maxTokens = 150, signal }) {
+  async complete({ system, prompt, maxTokens = 150, responseFormat, signal }) {
     clearTimeout(this.#idle); this.#idle = null;
     await this.#start();
     try {
       const response = await fetch(`http://127.0.0.1:${this.#port}/v1/chat/completions`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(45_000)]) : AbortSignal.timeout(45_000),
-        body: JSON.stringify({ model: this.#modelPath, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: 0.6, max_tokens: maxTokens, stream: false, chat_template_kwargs: { enable_thinking: false } }),
+        body: JSON.stringify({ model: this.#modelPath, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: 0.6, max_tokens: maxTokens, stream: false, chat_template_kwargs: { enable_thinking: false }, ...(responseFormat ? { response_format: responseFormat } : {}) }),
       });
       if (!response.ok) throw new Error(`DJ LLM HTTP ${response.status}: ${(await response.text()).slice(0, 400)}`);
       const body = await response.json();

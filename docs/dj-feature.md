@@ -65,6 +65,7 @@ Women: `serena`, `sohee` (Relax, owner 5/5), `vivian` (EDM, 5/5). Men: `ryan`, `
 `src/radio/dj/prompts/`, no prompt text in code:
 
 - `writer/system.md`, `writer/rules.md`: the script-writer instructions (grounding rules below).
+- `writer/duo.md`: the two-host break; `writer/news.md`: one spoken sentence from a news story.
 - `writer/fallback-templates.json`: sentence templates with `{title}`, `{mood}`, `{bpm}`, `{genre}` slots, per style preset. Used when the LLM is unavailable (tier 2) or a line fails validation twice.
 - `djs/<id>.json`: id, display name, speaker, gender, language, best-for stations, character sentence.
 - `styles/<preset>.json`: TTS `instruct` text and writer tone for the preset.
@@ -80,6 +81,29 @@ Grounding rules (from the 36-sample test: the 4B invented details of the previou
 - 35–60 words, plain text, one light joke, no emoji, no stage directions, no invented artists, places or facts.
 - Recent openers (last 6 lines) are passed as "do not start like these".
 - Validation after generation: length, title present exactly once, no markup, no tags. One retry, then a fallback template line. Everything is recorded in the line's `source` (`llm`/`template`).
+
+### Two hosts and the news (`dj-duo.js`)
+
+A break is written for two hosts: the station's DJ (host A) and a co-host of the other sex,
+the first one suited to the style (`coHostFor`). The writer returns 2–4 alternating turns as
+JSON, forced by a JSON schema that `llama-server` turns into a grammar. Code removes a host name
+before a line (it would be read aloud). `validateDuo` checks turns 4–30 words, 35–80 in all,
+the title once and only in the last turn, and no capitalised word inside a sentence that is not
+a host, the station, the title or a genre. Each turn is voiced by its own DJ and `joinTurns`
+makes one WAV with 0.3 s between voices, so caching, playback and ducking are unchanged.
+Two failed tries fall back to the single-DJ line (two tries), then to a template.
+
+While News is on, a break may mention one story from the newest bulletin
+(`NewsDesk.headlines()`): at most once an hour, never the same story twice, English only.
+The writer retells it in one sentence from its headline and summary (`writer/news.md`);
+`validateNewsLine` rejects a sentence that does not credit the source or holds a number or
+capitalised word not in the source, and after two failures the headline is read as it is.
+The host who does not hand over reads it, just before the handoff. A break with news is
+cached under its own key, so a replay of the song never repeats old news.
+
+Measured on this Mac (40 prompts, real model): 37/40 breaks valid on the first try, 39/40
+after the retry, 1.65 s each; news sentences were accurate for every BBC and NPR story tested
+(24/24, 0.5 s). Five voice clips take about 10 s (cold), about a third of their length warm.
 
 ## Priority and concurrency (the important part)
 

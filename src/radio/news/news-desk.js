@@ -89,6 +89,9 @@ export class NewsDesk extends EventEmitter {
     return { ...this.#settings, feeds: this.feeds(), station: NEWS_STATION, status, missing: this.#missing, nextAt: this.#settings.enabled ? new Date(this.#target(this.#now())).toISOString() : null, latest, due: this.#due, error: this.#error };
   }
 
+  /** The newest bulletin's stories while News is on: the only news a DJ may mention. */
+  headlines() { return this.#settings.enabled ? this.#bulletins.at(-1)?.stories ?? [] : []; }
+
   isUrgent() {
     if (!this.#settings.enabled) return false;
     // Urgent only while a bulletin needs the engine: being made, waiting for it, or inside the
@@ -310,7 +313,7 @@ export class NewsDesk extends EventEmitter {
         id, readyAt: new Date(this.#now()).toISOString(), forHour: scheduled ? target : 0, durationSec: timeline.totalSamples / timeline.sampleRate,
         stories: stories.map((story) => {
           const span = timeline.voice.find((entry) => entry.id === story.id);
-          return { id: story.id, title: story.title, source: story.source, link: story.link, startSec: span.startSec, endSec: span.endSec };
+          return { id: story.id, title: story.title, summary: story.summary ?? '', language: story.language ?? 'en', source: story.source, link: story.link, startSec: span.startSec, endSec: span.endSec };
         }),
       };
       await mkdir(this.#dir, { recursive: true });

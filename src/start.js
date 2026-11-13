@@ -77,7 +77,7 @@ export async function startRadio(config, { wrapEngine = engine => engine } = {})
   const djModelConfig = { dataDir: join(config.engine.dataDir, 'dj-llm'), modelDir: djModelFolder, binary: config.engine.binary, modelSpecs: config.engine.modelSpecs };
   const djModel = new ModelSetup(djModelConfig, { files: djLlmManifest.files, components: [] });
   await djModel.initialize();
-  const dj = new DjDesk({ dataDir: config.engine.dataDir, station, engine, modelSetup: djModel, voiceSetup: voice, newsUrgent: () => news.isUrgent(), slotEverySong: config.demoDjEverySong === true, llmCommand: config.djLlmCommand ?? null });
+  const dj = new DjDesk({ dataDir: config.engine.dataDir, station, engine, modelSetup: djModel, voiceSetup: voice, newsUrgent: () => news.isUrgent(), headlines: () => news.headlines(), slotEverySong: config.demoDjEverySong === true, llmCommand: config.djLlmCommand ?? null });
   await dj.load();
   station.attachDJ(dj);
   const server = createApp({ station, uiDir: config.uiDir, readGpu: readGpuPercent, setup, live, news, voice, dj });
