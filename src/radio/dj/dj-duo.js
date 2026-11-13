@@ -29,14 +29,21 @@ export function buildDuoRequest(prompts, context, hosts, options) {
 
 /**
  * Reads the writer's JSON into [{ host: 0|1, text }], or null. A host name before a line
- * ("Serena: ...") would be read aloud, so it is removed here.
+ * ("Serena: ...") would be read aloud, and the writer sometimes writes it as the speaker's
+ * own name with a comma ("Dylan, let's ..." said by Dylan): both are removed here.
  */
 export function parseDuo(raw, hosts) {
   let turns;
   try { turns = JSON.parse(raw).turns; } catch { return null; }
   if (!Array.isArray(turns)) return null;
   const label = new RegExp(`^\\s*(?:${[...hosts.map((host) => escape(host.name)), 'A', 'B', 'Host A', 'Host B'].join('|')})\\s*:\\s*`, 'i');
-  return turns.map((turn) => ({ host: turn?.host === 'B' ? 1 : turn?.host === 'A' ? 0 : -1, text: typeof turn?.text === 'string' ? turn.text.replace(label, '').trim() : '' }));
+  return turns.map((turn) => {
+    const host = turn?.host === 'B' ? 1 : turn?.host === 'A' ? 0 : -1;
+    const own = hosts[host] ? new RegExp(`^\\s*${escape(hosts[host].name)}\\s*[,:–—-]\\s*`, 'i') : null;
+    let text = typeof turn?.text === 'string' ? turn.text.replace(label, '').trim() : '';
+    if (own?.test(text)) { text = text.replace(own, ''); text = text.charAt(0).toUpperCase() + text.slice(1); }
+    return { host, text };
+  });
 }
 
 /**

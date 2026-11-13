@@ -95,12 +95,15 @@ export class StationStore {
     await this.#save();
   }
 
-  /** `{ id: null }` keeps a chosen "No DJ"; 'default' removes the choice so the style default applies. */
-  async setDj(id, djId) {
+  /**
+   * `{ id: null }` keeps a chosen "No DJ" (or, for the co-host, "talks alone"); 'default' removes
+   * the choice so the automatic one applies. `role` is 'dj' or 'coHost'.
+   */
+  async setDj(id, djId, role = 'dj') {
     const station = this.get(id);
     if (!station) throw new RangeError('Unknown station');
-    if (djId === 'default') delete station.dj;
-    else station.dj = { id: djId };
+    if (djId === 'default') delete station[role];
+    else station[role] = { id: djId };
     await this.#save();
   }
 

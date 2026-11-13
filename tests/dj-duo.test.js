@@ -40,6 +40,8 @@ test('a two-host break is parsed without spoken name labels and checked', () => 
   assert.deepEqual(parsed.map((turn) => turn.host), [0, 1, 0, 1]);
   assert.equal(validateDuo(parsed, check), true);
   assert.equal(parseDuo('not json', hosts), null);
+  const self = parseDuo(JSON.stringify({ turns: [{ host: 'A', text: "Serena, let's take a deep breath." }, { host: 'B', text: 'Serena, that is a solid plan.' }] }), hosts);
+  assert.deepEqual(self.map((turn) => turn.text), ["Let's take a deep breath.", 'Serena, that is a solid plan.'], 'a host never addresses themself; the other may');
   const broken = (change) => validateDuo(change(structuredClone(parsed)), check);
   assert.equal(broken((list) => { list[0].host = 1; return list; }), false, 'turns must alternate from A');
   assert.equal(broken((list) => { list[0].text += ` ${title} is lovely.`; return list; }), false, 'title only in the handoff');
@@ -65,7 +67,7 @@ test('turns become one WAV with a short gap between voices', () => {
 
 const freePort = () => new Promise((resolve, reject) => { const server = createServer(); server.once('error', reject); server.listen(0, '127.0.0.1', () => { const { port } = server.address(); server.close(() => resolve(port)); }); });
 
-async function desk(t, newsAnswer) {
+async function desk(t, newsAnswer, coHostChoice) {
   const root = await mkdtemp(join(tmpdir(), 'lvx-dj-duo-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   // A writer that answers the two-host JSON when asked for it, and the news sentence for the news prompt.
@@ -76,7 +78,7 @@ http.createServer(async (req, res) => {
   if (req.url === '/health') { res.end('ok'); return; }
   let body = ''; for await (const chunk of req) body += chunk;
   const request = JSON.parse(body);
-  const content = request.response_format ? ${JSON.stringify(JSON.stringify({ turns }))} : ${JSON.stringify(newsAnswer)};
+  const content = request.response_format ? ${JSON.stringify(JSON.stringify({ turns: turns.map((turn) => ({ ...turn, text: turn.text.replace(/^\w+: /, '') })) }))} : ${JSON.stringify(newsAnswer)};
   res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ choices: [{ message: { content } }] }));
 }).listen(port, '127.0.0.1');
 `);
@@ -84,7 +86,7 @@ http.createServer(async (req, res) => {
     stationId: 'station-a', stationName: 'Slow Neon', lux: false, playing: true, busy: false, djId: 'serena',
     current: { id: 'current-a', title: 'Previous Tune', status: 'ready' },
     next: { id: 'next-a', title, status: 'ready', generation: { mix: { Pop: 100 }, mood: 'calm and reflective' } },
-    config: { mix: { Pop: 100 }, mood: 'calm', energy: 22, seed: 7 }, runwaySec: 300, songEstimateSec: 90, playbackTrackId: 'current-a',
+    config: { mix: { Pop: 100 }, mood: 'calm', energy: 22, seed: 7 }, coHostChoice, runwaySec: 300, songEstimateSec: 90, playbackTrackId: 'current-a',
   };
   const station = { context, djContext: () => context, snapshot: () => ({ stationId: 'station-a', tracks: [] }), requestHold: (grant) => { queueMicrotask(() => grant(() => {})); return () => {}; } };
   const wav = writeWav({ sampleRate: 24000, samples: [Float32Array.from({ length: 24000 }, (_, i) => Math.sin(i / 13) * 0.1)] });
@@ -114,4 +116,23 @@ test('a break is two voices, with the news read just before the handoff', async 
 test('a news sentence that adds facts is replaced by the headline itself', async (t) => {
   const { dj } = await desk(t, 'BBC News reports that Satya Nadella apologised to 300 airlines.');
   assert.equal(dj.snapshot().lastLine.turns[3].text, headlineLine(story));
+});
+
+test('the pair follows the station choice: another co-host of the other sex, or the DJ alone', async (t) => {
+  const men = prompts.djs.filter((dj) => dj.gender !== serena.gender);
+  const other = men.find((dj) => dj.id !== hosts[1].id);
+  const { dj, engine } = await desk(t, 'unused', other.id);
+  assert.deepEqual(dj.coHost('serena', 'pop', other.id), { coHost: other.id, coHostChosen: true });
+  assert.deepEqual(dj.coHost('serena', 'pop', 'sohee'), { coHost: hosts[1].id, coHostChosen: false }, 'same sex: the automatic co-host');
+  assert.deepEqual(dj.coHost('serena', 'pop', null), { coHost: null, coHostChosen: true });
+  assert.deepEqual(dj.coHost('serena', 'pop', undefined), { coHost: hosts[1].id, coHostChosen: false });
+  assert.deepEqual([...new Set(dj.snapshot().lastLine.turns.map((turn) => turn.djId))], ['serena', other.id]);
+  assert.ok(engine.requests.some((request) => request.options.speaker === other.speaker));
+});
+
+test('a station whose DJ talks alone gets a single-voice line', async (t) => {
+  // The fake writer answers plain text outside the JSON format, so the solo line falls back to a template.
+  const { dj, engine } = await desk(t, 'unused', null);
+  assert.equal(dj.snapshot().lastLine.turns.length, 1);
+  assert.equal(engine.requests.length, 1);
 });

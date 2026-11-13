@@ -116,7 +116,7 @@ export class DjDesk extends EventEmitter {
   #lastLine = null; #last = null; #nextSlot = null; #preview = null; #tier = null; #active = null; #introduction = null; #introductionTimer = null; #modelPoll = null;
   #states = new Map(); #openers = []; #writerStructures = []; #writerHumour = []; #closed = false; #ready = false; #missing = ['llm', 'voice'];
 
-  #slotEverySong; #bundledPreviews = new Map(); #previewsDir; #luxChoices = {}; #headlines; #newsAt = 0; #mentioned = new Set();
+  #slotEverySong; #bundledPreviews = new Map(); #previewsDir; #luxChoices = {}; #headlines; #newsAt = 0; #mentioned = new Set(); #luxCoHosts = {};
   constructor({ dataDir, cacheDir = join(dataDir, 'dj'), station, engine, modelSetup, voiceSetup, freeMemory = readMacMemory, newsUrgent = () => false, headlines = () => [], promptFolders, slotEverySong = false, isWarm, llmCommand = null, previewsDir } = {}) {
     super();
     this.#headlines = headlines;
@@ -141,6 +141,9 @@ export class DjDesk extends EventEmitter {
         // LVX stations' choices; listener stations keep theirs in stations.json. Unknown ids mean "default".
         for (const [id, choice] of Object.entries(saved.stations && typeof saved.stations === 'object' ? saved.stations : {})) {
           if (/^[\w:-]{1,80}$/.test(id) && (choice === null || DJ_IDS.includes(choice))) this.#luxChoices[id] = choice;
+        }
+        for (const [id, choice] of Object.entries(saved.coHosts && typeof saved.coHosts === 'object' ? saved.coHosts : {})) {
+          if (/^[\w:-]{1,80}$/.test(id) && (choice === null || DJ_IDS.includes(choice))) this.#luxCoHosts[id] = choice;
         }
       }
     } catch {}
@@ -167,18 +170,33 @@ export class DjDesk extends EventEmitter {
     this.#modelPoll.unref?.();
   }
 
-  async #save() { await atomic(this.#settingsFile, JSON.stringify({ version: 1, ...this.#settings, stations: this.#luxChoices })); }
+  async #save() { await atomic(this.#settingsFile, JSON.stringify({ version: 1, ...this.#settings, stations: this.#luxChoices, coHosts: this.#luxCoHosts })); }
 
   /** An LVX station's effective DJ: its own choice, else the style default (bundled four only). */
   luxDj(station) { return luxStationDj(station, this.#luxChoices); }
 
-  /** Chooses one LVX station's DJ: a catalog id, null for "No DJ", 'default' to forget the choice. */
-  async setLuxDj(station, djId) {
+  /** An LVX station's chosen co-host: an id, null (talks alone), undefined (automatic). */
+  luxCoHostChoice(station) { return Object.hasOwn(this.#luxCoHosts, station.id) ? this.#luxCoHosts[station.id] : undefined; }
+
+  /** Chooses one LVX station's DJ or co-host (role): a catalog id, null for none, 'default' to forget the choice. */
+  async setLuxDj(station, djId, role = 'dj') {
     if (!DJ_IDS.includes(djId) && djId !== null && djId !== 'default') throw new RangeError('Unknown DJ');
-    if (djId === 'default') delete this.#luxChoices[station.id];
-    else this.#luxChoices[station.id] = djId;
+    const choices = role === 'coHost' ? this.#luxCoHosts : this.#luxChoices;
+    if (djId === 'default') delete choices[station.id];
+    else choices[station.id] = djId;
     await this.#save(); this.emit('change');
     return { stationId: station.id, ...this.luxDj(station) };
+  }
+
+  /**
+   * Who talks with `djId`: a chosen DJ of the other sex, nobody when the choice is null, otherwise
+   * the automatic co-host (a choice left invalid by a new DJ falls back to it).
+   */
+  coHost(djId, styleId, choice) {
+    const dj = this.#prompts.djs.find((entry) => entry.id === djId);
+    if (!dj || choice === null) return { coHost: null, coHostChosen: Boolean(dj) };
+    const chosen = this.#prompts.djs.find((entry) => entry.id === choice && entry.gender !== dj.gender);
+    return chosen ? { coHost: chosen.id, coHostChosen: true } : { coHost: coHostFor(this.#prompts.djs, dj, styleId)?.id ?? null, coHostChosen: false };
   }
 
   /**
@@ -221,10 +239,12 @@ export class DjDesk extends EventEmitter {
   }
 
   async configure(change) {
-    const { stationId, djId, ...settings } = change ?? {};
+    const { stationId, djId, coHostId, ...settings } = change ?? {};
     if (stationId !== undefined) {
-      if (typeof stationId !== 'string' || (djId !== null && typeof djId !== 'string')) throw new TypeError('Invalid station DJ choice');
-      return this.#station.setDj(stationId, djId);
+      const role = Object.hasOwn(change, 'coHostId') ? 'coHost' : 'dj';
+      const value = role === 'coHost' ? coHostId : djId;
+      if (typeof stationId !== 'string' || (value !== null && typeof value !== 'string')) throw new TypeError('Invalid station DJ choice');
+      return this.#station.setDj(stationId, value, role);
     }
     for (const [key, value] of Object.entries(settings)) {
       if (key === 'enabled' && typeof value === 'boolean') this.#settings.enabled = value;
@@ -459,10 +479,10 @@ export class DjDesk extends EventEmitter {
   }
 
   /** LVX songs repeat: a cached line is used again at most LUX_LINE_REUSE times, then a new variant is written. */
-  async #luxVariant(context, dj, styleId) {
+  async #luxVariant(context, dj, styleId, coHostId) {
     let first = null;
     for (let variant = 0; variant < LUX_LINE_VARIANTS; variant += 1) {
-      const key = createHash('sha256').update(JSON.stringify(['lux', context.next.id, dj.id, LINE_VERSION, VOICE_VERSION, styleId, variant])).digest('hex');
+      const key = createHash('sha256').update(JSON.stringify(['lux', context.next.id, dj.id, coHostId, LINE_VERSION, VOICE_VERSION, styleId, variant])).digest('hex');
       const cached = await this.#cached(key);
       if (!cached) return { key, cached: null };
       first ??= { key, cached };
@@ -508,8 +528,9 @@ export class DjDesk extends EventEmitter {
     const startedAt = performance.now(); let outcome = null;
     const dj = this.#prompts.djs.find((entry) => entry.id === context.djId);
     const styleId = context.styleId ?? styleFor(context.config), style = this.#prompts.styles.find((entry) => entry.id === styleId) ?? this.#prompts.styles.find((entry) => entry.id === 'generic');
-    const hosts = [dj, coHostFor(this.#prompts.djs, dj, styleId)];
-    let key = context.cacheKey ?? createHash('sha256').update(JSON.stringify([context.next.id, dj.id, LINE_VERSION, VOICE_VERSION, styleId])).digest('hex');
+    const coHostId = this.coHost(dj.id, styleId, context.coHostChoice).coHost;
+    const hosts = [dj, this.#prompts.djs.find((entry) => entry.id === coHostId) ?? null];
+    let key = context.cacheKey ?? createHash('sha256').update(JSON.stringify([context.next.id, dj.id, coHostId, LINE_VERSION, VOICE_VERSION, styleId])).digest('hex');
     let wasReleased = false;
     const active = this.#active;
     active.controller = new AbortController();
@@ -518,7 +539,7 @@ export class DjDesk extends EventEmitter {
       const availability = await this.settings();
       if (!availability.voice.ready) throw new Error('The shared News voice is not ready.');
       let cached;
-      if (context.lux && mode === 'slot' && !context.cacheKey) ({ key, cached } = await this.#luxVariant(context, dj, styleId));
+      if (context.lux && mode === 'slot' && !context.cacheKey) ({ key, cached } = await this.#luxVariant(context, dj, styleId, coHostId));
       else cached = await this.#cached(key);
       let line;
       if (!cached) {

@@ -92,6 +92,12 @@ the title once and only in the last turn, and no capitalised word inside a sente
 a host, the station, the title or a genre. Each turn is voiced by its own DJ and `joinTurns`
 makes one WAV with 0.3 s between voices, so caching, playback and ducking are unchanged.
 Two failed tries fall back to the single-DJ line (two tries), then to a template.
+The listener can choose the co-host in the DJ popover ("Talks with": the DJs of the other sex,
+or Alone). It is stored like the DJ choice: `station.coHost = { id }` in `stations.json`, and
+the `coHosts` map in `dj-settings.json` for LVX stations; `POST /api/dj/settings` takes
+`{ stationId, coHostId }` (an id, null for alone, 'default'). `DjDesk.coHost` resolves the pair
+for both the snapshot (`coHost`, `coHostChosen` on each station) and production; a choice left
+of the same sex by a new DJ falls back to the automatic co-host.
 
 While News is on, a break may mention one story from the newest bulletin
 (`NewsDesk.headlines()`): at most once an hour, never the same story twice, English only.
