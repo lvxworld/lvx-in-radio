@@ -13,9 +13,9 @@ header { display: flex; align-items: center; justify-content: space-between; }
 #tray svg { width:18px; height:18px; stroke:currentColor; stroke-width:1.3; stroke-linecap:round; stroke-linejoin:round; }
 .is-compact header { -webkit-app-region:drag; }
 .is-compact button { -webkit-app-region:no-drag; }
-.brand { display: flex; gap: 8px; align-items: center; font-weight: 700; font-size: 17px; letter-spacing: .06em; }
-.brand img { width: 28px; height: 28px; object-fit: contain; opacity: .8; }
-.brand small { display: block; margin-top: 2px; font: 7px 'JetBrains Mono', monospace; letter-spacing: .21em; color: #a59a89; }
+/* The original lock-up, as in the On air corner; the negative margin keeps the header at its 32.5px height. */
+.brand { display: flex; align-items: center; }
+.brand-logo { display: block; width: 104px; height: 37px; margin-block: -2.25px; object-fit: contain; opacity: .72; }
 .status { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid #f3ece21a; border-radius: 999px; background: #0d0c0b66; font: 8px 'JetBrains Mono', monospace; letter-spacing: .1em; color: #968c7d; }
 .status i { width: 4px; height: 4px; border-radius: 50%; background: #82796c; }
 .is-playing .status { color: #e4bd83; }

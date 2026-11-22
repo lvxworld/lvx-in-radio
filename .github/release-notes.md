@@ -1,13 +1,9 @@
-LVX in Radio v0.2.0 brings DJ conversations and confirmed song deletion to the radio.
+LVX in Radio v0.2.1 fixes the window on smaller Mac screens and sharpens the logo in the menu bar.
 
-- **Meet the LVX DJ.** Every two to four songs a DJ talks over the end of the song on air and introduces the next one by title and mood. The music ducks under the voice. Everything runs on your Mac: a small local model writes the line and the LVX News voice reads it.
-- **Six DJs to choose from.** Serena, Sohee, Vivian, Ryan, Aiden and Dylan. Each station gets a default that suits its style, and you can pick another or none from the DJ chip. The LVX stations have DJs too.
-- **Choose a DJ pair.** In the DJ menu, use **Talks with** to choose a co-host or **Alone**. The local writer creates a conversation, with each host speaking in their own voice. If memory is limited or writing fails, the existing single-voice fallback remains available.
-- **LVX News with two hosts.** When the writer is available, Ryan and Serena alternate the stories. News facts are read from the feeds; light, recent headlines may also appear in DJ breaks.
-- **Delete generated songs with confidence.** The X beside the heart shows a confirmation with the song title and approximate space to free. Confirming removes the local song and its associated DJ clips, then moves to the next available song. Cancel and Escape keep it. Included and Live songs retain “Don't play again”; removing a heart keeps the files.
-- **More reliable playback.** DJ cadence can start on the first song, samples work while paused, and cancelling a conversation stops its remaining voice jobs.
-- **Set it up in Settings → DJs.** Turn DJs on, choose how often they talk, and listen to each DJ before choosing. The DJ needs the News voice and a writer model (about 3 GB), downloaded once, or found in your Hugging Face cache if you already have it.
-- **A single style at 100%.** A station can now use one style alone; styles at zero no longer count.
+- **The whole radio fits on smaller screens.** On a MacBook Air, or with a larger text setting, Create cut off its third column and On air could hide the FM band behind the player. The window now fits the screen, Create scales itself down to show every section, and On air draws its dial a little smaller on very short screens.
+- **The window sizes itself.** The app picks the window size from your screen and picks again when you move it to another display or leave full screen. Use the green button for full screen.
+- **A sharper menu bar icon.** The LVX symbol in the menu bar keeps its original shapes and stays crisp on Retina displays, black or white with the menu bar like every other icon.
+- **The original logo in the mini player.** The menu bar panel and the compact player now show the same LVX in Radio logo as On air.
 
 1. Download the DMG and drag **LVX in Radio** into Applications.
 2. Open it. macOS blocks it the first time because the app is not notarized: go to **System Settings → Privacy & Security → Open Anyway**, then confirm.

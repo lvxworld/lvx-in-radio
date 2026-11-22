@@ -15,6 +15,7 @@ If the Homebrew `node` is broken, use Node 24 directly:
 npm ci
 npm test              # fake engine, no GPU or model needed
 npm run test:menu-bar # Native mini player, playback and generation controls; no model needed
+npm run test:window-fit # On air (1120x720 down to 1024x600) and Create (1280x980 down to 1180x760) fit the native window, real preload; no model
 npm run test:live-ui  # Electron renderer: settings, Describe, QR PNG round-trip, Live playback; no model needed
 node node_modules/electron/cli.js tests/electron/song-delete-smoke.js # Song deletion confirmation and playback; disposable data, no model
 npm start             # browser UI at http://127.0.0.1:8787
