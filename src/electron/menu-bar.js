@@ -3,7 +3,7 @@ import { BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen } from 'electro
 
 /** A single radio in the menu bar. Hiding the window never stops its playback. */
 export function createMenuBar({ root, getWindow, quit }) {
-  const icon = nativeImage.createFromPath(join(root, 'src/ui/assets/logo-symbol.png')).resize({ width: 22, height: 20 });
+  const icon = nativeImage.createFromPath(join(root, 'src/ui/assets/tray-template.png'));
   icon.setTemplateImage(true);
   const tray = new Tray(icon);
   let playback = { playing: false, available: false, name: 'LVX in Radio', title: '', frequency: null, colors: [] };
