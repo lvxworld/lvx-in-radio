@@ -1331,10 +1331,20 @@ html[data-shell='app'] .mac-window.create-window {
 
 html[data-shell='app'] .create-window .create-screen {
   zoom: var(--create-scale, 1);
-  width: calc(100% / var(--create-scale, 1));
+  /* Standardized CSS zoom (Chromium 128+; Electron 45 ships 142) does not scale percentages, so 100% already fills the window. */
+  width: 100%;
   height: calc((100vh - 102px) / var(--create-scale, 1)) !important;
   min-height: 0 !important;
   flex: none;
+}
+
+/* On air: the hero is a fixed 515px, so short windows (forced by a tiny work area) draw it smaller to keep the FM band above the player. */
+@media (max-height: 700px) {
+  html[data-shell='app'] .air-window .air-hero { zoom: 0.85; }
+}
+
+@media (max-height: 620px) {
+  html[data-shell='app'] .air-window .air-hero { zoom: 0.76; }
 }
 
 html[data-shell='app'] .create-window .create-columns {

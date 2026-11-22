@@ -1004,8 +1004,8 @@ class Component extends DCLogic {
   tunableStations(){const id=this.composingId();return this.dialStations().filter(station=>station.songCount>0||station.id!==id)}
   nearestStation(frequency){let best=null,gap=Infinity;for(const station of this.tunableStations()){const d=Math.abs(this.freqOf(station.k)-frequency);if(d<gap){gap=d;best=station}}return best}
   bandScale(width){return Math.max(26,Math.min(48,width/18))}
-  bandDown=(e)=>{this.initAudio();this.bandLastX=e.clientX;this.bandMoved=0;const box=e.currentTarget.getBoundingClientRect();this.bandTapX=e.clientX-box.left-box.width/2;this.bandWidth=box.width;try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){}this.setState({dragging:true})};
-  bandMove=(e)=>{const s=this.state;if(!s.dragging)return;const dx=e.clientX-this.bandLastX;this.bandLastX=e.clientX;this.bandMoved+=Math.abs(dx);if(this.bandMoved<BAND_DRAG_PX)return;
+  bandDown=(e)=>{this.initAudio();this.bandLastX=e.clientX;this.bandMoved=0;const el=e.currentTarget,box=el.getBoundingClientRect(),z=el.clientWidth&&Math.abs(box.width/el.clientWidth-1)>.01?box.width/el.clientWidth:1;this.bandZoom=z;this.bandTapX=(e.clientX-box.left-box.width/2)/z;this.bandWidth=box.width/z;try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){}this.setState({dragging:true})};
+  bandMove=(e)=>{const s=this.state;if(!s.dragging)return;const raw=e.clientX-this.bandLastX,dx=raw/(this.bandZoom||1);this.bandLastX=e.clientX;this.bandMoved+=Math.abs(raw);if(this.bandMoved<BAND_DRAG_PX)return;
     const frequency=Math.max(87.8,Math.min(107.8,s.freq-dx/this.bandScale(this.bandWidth))),near=this.nearestStation(frequency),off=near?Math.min(1,Math.abs(this.freqOf(near.k)-frequency)/.4):1;
     if(Math.floor(frequency*5)!==Math.floor(s.freq*5))this.tickSnd();
     if(s.playing&&this.ctx){this.setStatic(.03+off*.22);this.master.gain.setTargetAtTime(this.vol()*(1-off*.85),this.ctx.currentTime,.05)}

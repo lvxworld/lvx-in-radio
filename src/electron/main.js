@@ -7,6 +7,7 @@ import { app, BrowserWindow, dialog, ipcMain, screen, shell } from 'electron';
 import { loadConfig } from '../config.js';
 import { startRadio } from '../start.js';
 import { createMenuBar } from './menu-bar.js';
+import { fitWindowBounds, windowMinimum } from './window-fit.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -64,42 +65,60 @@ function openWindow(address) {
     const result = await dialog.showOpenDialog(window, { title: 'Choose your DJ script model folder', properties: ['openDirectory'] });
     return result.canceled ? null : result.filePaths[0];
   });
+  const initialArea = screen.getPrimaryDisplay().workArea;
+  const [minWidth, minHeight] = windowMinimum(initialArea);
   window = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 1120,
-    minHeight: 720,
+    ...fitWindowBounds({ width: 1280, height: 820 }, initialArea),
+    minWidth,
+    minHeight,
+    fullscreenable: true,
     backgroundColor: '#0b0a09',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 20, y: 25 },
     webPreferences: { preload: join(ROOT, 'src/electron/preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
   });
-  // The layout is built for fixed sizes: dragging an edge only makes it brittle.
-  // Maximize and restore (even from the green button) still work; the app's own
-  // resizing between On air and Create goes through setBounds, which never fires this.
-  window.on('will-resize', (event) => {
-    if (!window.isMaximized() && !window.isFullScreen()) event.preventDefault();
-  });
   let view = 'radio';
   let radioBounds = window.getBounds();
+  window.on('will-resize', (event) => {
+    if (!window.isFullScreen() && !window.isMaximized()) event.preventDefault();
+  });
+  let displayId = screen.getDisplayMatching(window.getBounds()).id;
+  const fitToDisplay = (afterMove) => {
+    if (!window) return;
+    const current = window.getBounds();
+    const display = screen.getDisplayMatching(current);
+    const area = display.workArea;
+    const oversized = current.width > area.width || current.height > area.height;
+    if (afterMove && display.id === displayId && !oversized) return;
+    displayId = display.id;
+    window.setMinimumSize(...windowMinimum(area));
+    // Dragging on the same display keeps its position; a different display or
+    // work area chooses the app's dimensions again, including on larger screens.
+    if (window.isFullScreen() || window.isMaximized()) return;
+    const fitted = fitWindowBounds({ ...current, width: 1280, height: view === 'create' ? 980 : 820 }, area);
+    if (Object.keys(fitted).some(key => fitted[key] !== current[key])) window.setBounds(fitted);
+  };
+  const displayChanged = () => fitToDisplay(false);
+  window.on('moved', () => fitToDisplay(true));
+  screen.on('display-metrics-changed', displayChanged);
+  screen.on('display-removed', displayChanged);
   ipcMain.on('radio:view', (event, next) => {
     if (!window || event.sender !== window.webContents || !['create', 'radio'].includes(next) || next === view) return;
     if (window.isFullScreen() || window.isMaximized()) { view = next; return; }
     const current = window.getBounds();
     if (next === 'create') radioBounds = current;
     const area = screen.getDisplayMatching(current).workArea;
-    const desired = next === 'create' ? { width: 1280, height: 980 } : radioBounds;
-    const width = Math.min(desired.width, area.width);
-    const height = Math.min(desired.height, area.height);
-    const x = next === 'create' ? Math.round(current.x + (current.width - width) / 2) : radioBounds.x;
-    const y = next === 'create' ? Math.round(current.y + (current.height - height) / 2) : radioBounds.y;
+    window.setMinimumSize(...windowMinimum(area));
+    const desired = next === 'create' ? { width: 1280, height: 980 } : { ...radioBounds, width: 1280, height: 820 };
+    const fitted = fitWindowBounds(desired, area);
+    if (next === 'create') {
+      fitted.x = Math.round(current.x + (current.width - fitted.width) / 2);
+      fitted.y = Math.round(current.y + (current.height - fitted.height) / 2);
+    }
     view = next;
-    window.setBounds({
-      width, height,
-      x: Math.max(area.x, Math.min(x, area.x + area.width - width)),
-      y: Math.max(area.y, Math.min(y, area.y + area.height - height)),
-    }, true);
+    window.setBounds(fitWindowBounds(fitted, area), true);
   });
+  window.on('leave-full-screen', displayChanged);
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url);
     return { action: 'deny' };
@@ -113,6 +132,8 @@ function openWindow(address) {
     if (!quitting) { event.preventDefault(); window.hide(); }
   });
   window.on('closed', () => {
+    screen.removeListener('display-metrics-changed', displayChanged);
+    screen.removeListener('display-removed', displayChanged);
     window = null;
   });
 }

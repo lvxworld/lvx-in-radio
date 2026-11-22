@@ -17,6 +17,7 @@
     "dist": "npm run fetch-engine && npm run fetch-dj-llm && electron-builder --mac --arm64 --publish never && node scripts/clean-dist.js",
     "fresh": "sh scripts/fresh-launch.sh",
     "test:menu-bar": "electron tests/electron/menu-bar-smoke.js",
+    "test:window-fit": "electron tests/electron/window-fit-smoke.js",
     "test:live-ui": "electron tests/electron/live-radio-smoke.js",
     "demo": "bash scripts/run-demo.sh",
     "e2e:dj": "node scripts/e2e-dj-app.mjs"
